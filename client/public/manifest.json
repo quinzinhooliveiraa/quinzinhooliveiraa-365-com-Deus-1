@@ -1,0 +1,40 @@
+{
+  "name": "365 Encontros com Deus Pai",
+  "short_name": "365 Encontros",
+  "description": "Um devocional diário com 365 encontros com Deus Pai.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0ece0",
+  "theme_color": "#2b6119",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}

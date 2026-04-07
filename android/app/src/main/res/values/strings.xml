@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Casa dos 20</string>
+    <string name="title_activity_main">Casa dos 20</string>
+    <string name="package_name">com.casados20.app</string>
+    <string name="custom_url_scheme">com.casados20.app</string>
+</resources>

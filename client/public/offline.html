@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Casa dos 20 - Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; }
+    .icon { font-size: 4rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.75rem; color: #c4b5fd; }
+    p { font-size: 1rem; color: #a3a3a3; line-height: 1.6; margin-bottom: 1.5rem; }
+    button {
+      background: #7c3aed;
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button:active { background: #6d28d9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🏠</div>
+    <h1>Você está offline</h1>
+    <p>Parece que você perdeu a conexão com a internet. Reconecte-se para continuar usando a Casa dos 20.</p>
+    <button onclick="location.reload()">Tentar novamente</button>
+  </div>
+</body>
+</html>

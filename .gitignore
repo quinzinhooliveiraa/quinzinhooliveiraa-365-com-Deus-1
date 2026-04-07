@@ -1,0 +1,18 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Ficheiros de ambiente (NUNCA commitar — contêm segredos reais)
+.env
+.env.local
+.env.production
+
+# Ficheiros grandes já guardados na base de dados Neon
+attached_assets/
+
+# Scripts temporários de push
+push.sh
+push_github.js
