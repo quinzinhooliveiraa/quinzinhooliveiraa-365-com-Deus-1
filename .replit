@@ -61,4 +61,3 @@ expertMode = true
 [userenv.shared]
 VAPID_SUBJECT = "mailto:quinzinhooliveiraa@gmail.com"
 VAPID_PUBLIC_KEY = "BKGBGM8PJTV0d5EIrsjqMww6m5LRYmcjgGzKz9hQOgfKmdlH1s4pyGXuQmlc32knvx1f0FoxidZ39eilGpz7RyY"
-NEON_DATABASE_URL = "postgresql://neondb_owner:npg_lOuNTxCGb62P@ep-super-dust-acesp03w-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
