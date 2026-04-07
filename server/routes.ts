@@ -538,7 +538,7 @@ export async function repairAdminEmail(): Promise<void> {
   }
 }
 
-const OLD_KEY = "e503ed1777430142ba0ba8571fc140652e7ef68c5734ff7f52432e7d7090521a";
+const OLD_KEY = process.env.OLD_ENCRYPTION_KEY ?? "";
 
 export async function repairAllEmailsWithOldKey(): Promise<void> {
   try {
