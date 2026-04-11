@@ -429,6 +429,7 @@ export const libraryBooks = pgTable("library_books", {
   requiresPremium: boolean("requires_premium").notNull().default(false),
   isPublished: boolean("is_published").notNull().default(false),
   freePages: integer("free_pages").notNull().default(3),
+  freePageNumbers: integer("free_page_numbers").array().notNull().default(sql`'{}'::integer[]`),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

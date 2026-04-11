@@ -1066,8 +1066,8 @@ export default function Admin() {
   const [bookPreview, setBookPreview] = useState(false);
   const bookTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  type LibraryBookMeta = { id: number; title: string; author: string; description: string; coverImageData: string | null; priceDisplay: string; priceInCents: number; requiresPremium: boolean; isPublished: boolean; freePages: number; createdAt: string };
-  const emptyLibForm = { title: "", author: "", description: "", priceDisplay: "Grátis", priceInCents: 0, requiresPremium: false, isPublished: false, coverImageData: "" as string, pdfData: "" as string, freePages: 3 };
+  type LibraryBookMeta = { id: number; title: string; author: string; description: string; coverImageData: string | null; priceDisplay: string; priceInCents: number; requiresPremium: boolean; isPublished: boolean; freePages: number; freePageNumbers: number[]; createdAt: string };
+  const emptyLibForm = { title: "", author: "", description: "", priceDisplay: "Grátis", priceInCents: 0, requiresPremium: false, isPublished: false, coverImageData: "" as string, pdfData: "" as string, freePages: 3, freePageNumbers: [] as number[] };
   const [libFormOpen, setLibFormOpen] = useState(false);
   const [libEditId, setLibEditId] = useState<number | null>(null);
   const [libForm, setLibForm] = useState(emptyLibForm);
@@ -1320,6 +1320,16 @@ export default function Admin() {
     enabled: !!libPageEditorBook,
   });
 
+  const { data: libEditPages = [] } = useQuery<{ id: number; pageNumber: number; title: string | null }[]>({
+    queryKey: ["/api/admin/library/books", libEditId, "pages"],
+    queryFn: async () => {
+      const r = await fetch(`/api/admin/library/books/${libEditId}/pages`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: libFormOpen && libEditId !== null,
+  });
+
   const [bookPriceInput, setBookPriceInput] = useState("");
   const [newPlanForm, setNewPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "month" | "year" });
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
@@ -1480,7 +1490,7 @@ export default function Admin() {
 
   function openLibEdit(book: LibraryBookMeta) {
     setLibEditId(book.id);
-    setLibForm({ title: book.title, author: book.author, description: book.description, priceDisplay: book.priceDisplay, priceInCents: book.priceInCents, requiresPremium: book.requiresPremium, isPublished: book.isPublished, coverImageData: book.coverImageData || "", pdfData: "", freePages: book.freePages ?? 3 });
+    setLibForm({ title: book.title, author: book.author, description: book.description, priceDisplay: book.priceDisplay, priceInCents: book.priceInCents, requiresPremium: book.requiresPremium, isPublished: book.isPublished, coverImageData: book.coverImageData || "", pdfData: "", freePages: book.freePages ?? 3, freePageNumbers: book.freePageNumbers ?? [] });
     if (book.requiresPremium) {
       setLibAccessType("premium");
       setLibPriceReais("");
@@ -1526,7 +1536,7 @@ export default function Admin() {
     const pricing = computeLibPricing();
     const data = { ...libForm, ...pricing };
     if (libEditId !== null) {
-      const patch: Record<string, any> = { title: data.title, author: data.author, description: data.description, ...pricing, isPublished: data.isPublished, freePages: data.freePages };
+      const patch: Record<string, any> = { title: data.title, author: data.author, description: data.description, ...pricing, isPublished: data.isPublished, freePages: data.freePages, freePageNumbers: data.freePageNumbers };
       if (data.coverImageData) patch.coverImageData = data.coverImageData;
       if (data.pdfData) patch.pdfData = data.pdfData;
       updateLibBookMutation.mutate({ id: libEditId, data: patch });
@@ -3438,23 +3448,70 @@ export default function Admin() {
                   </div>
                 )}
                 {(libAccessType === "premium" || libAccessType === "paid") && (
-                  <div className="mt-2">
-                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Páginas gratuitas (prévia)</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input
-                        type="number"
-                        min={0}
-                        value={libForm.freePages}
-                        onChange={e => setLibForm(f => ({ ...f, freePages: Math.max(0, Number(e.target.value)) }))}
-                        className="w-24 px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60"
-                        data-testid="input-lib-free-pages"
-                      />
-                      <span className="text-[10px] text-muted-foreground">
-                        {libForm.freePages === 0
-                          ? "Sem prévia — acesso bloqueado logo na 1ª página"
-                          : `Primeiras ${libForm.freePages} página(s) visíveis sem acesso`}
-                      </span>
-                    </div>
+                  <div className="mt-2 space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                      Páginas gratuitas (prévia)
+                    </label>
+                    {libEditId === null ? (
+                      <p className="text-[10px] text-muted-foreground">Guarda o livro primeiro e depois edita para selecionar as páginas gratuitas.</p>
+                    ) : libEditPages.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground">Este livro ainda não tem páginas carregadas.</p>
+                    ) : (
+                      <>
+                        <p className="text-[10px] text-muted-foreground">
+                          {libForm.freePageNumbers.length === 0
+                            ? "Nenhuma página selecionada — todo o conteúdo requer acesso"
+                            : `${libForm.freePageNumbers.length} página(s) gratuita(s) selecionada(s)`}
+                        </p>
+                        <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+                          {libEditPages.map(pg => {
+                            const isFree = libForm.freePageNumbers.includes(pg.pageNumber);
+                            return (
+                              <label
+                                key={pg.pageNumber}
+                                className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover-elevate"
+                                data-testid={`check-free-page-${pg.pageNumber}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isFree}
+                                  onChange={() => {
+                                    setLibForm(f => ({
+                                      ...f,
+                                      freePageNumbers: isFree
+                                        ? f.freePageNumbers.filter(n => n !== pg.pageNumber)
+                                        : [...f.freePageNumbers, pg.pageNumber].sort((a, b) => a - b),
+                                    }));
+                                  }}
+                                  className="accent-primary"
+                                />
+                                <span className="text-xs text-muted-foreground w-8 flex-shrink-0">#{pg.pageNumber}</span>
+                                <span className="text-xs text-foreground truncate">{pg.title || `Página ${pg.pageNumber}`}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setLibForm(f => ({ ...f, freePageNumbers: libEditPages.map(p => p.pageNumber) }))}
+                            className="text-[10px] text-primary underline"
+                            data-testid="btn-select-all-free-pages"
+                          >
+                            Selecionar todas
+                          </button>
+                          <span className="text-[10px] text-muted-foreground">·</span>
+                          <button
+                            type="button"
+                            onClick={() => setLibForm(f => ({ ...f, freePageNumbers: [] }))}
+                            className="text-[10px] text-muted-foreground underline"
+                            data-testid="btn-clear-free-pages"
+                          >
+                            Limpar seleção
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

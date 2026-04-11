@@ -752,6 +752,8 @@ async function runMigrations() {
       ON CONFLICT (key) DO NOTHING
     `);
 
+    await db.execute(sql`ALTER TABLE library_books ADD COLUMN IF NOT EXISTS free_page_numbers INTEGER[] NOT NULL DEFAULT '{}'::integer[]`);
+
     console.log("[migrations] Schema sync complete");
   } catch (err) {
     console.error("[migrations] Error:", err);
@@ -2376,12 +2378,19 @@ export async function registerRoutes(
       const isPrivileged = user?.hasPremium || user?.role === "admin";
       const pages = await storage.getLibraryPages(Number(req.params.id));
       if (book.requiresPremium && !isPrivileged) {
+        const specificFreeNums: number[] = Array.isArray(book.freePageNumbers) && book.freePageNumbers.length > 0
+          ? book.freePageNumbers
+          : [];
         const freeCount = book.freePages ?? 0;
-        if (freeCount <= 0) return res.status(403).json({ error: "Requer premium" });
-        const freeSlice = pages.slice(0, freeCount);
-        return res.json({ pages: freeSlice, freePages: freeCount, totalPages: pages.length, locked: true });
+        if (specificFreeNums.length === 0 && freeCount <= 0) {
+          return res.status(403).json({ error: "Requer premium" });
+        }
+        const freePages = specificFreeNums.length > 0
+          ? pages.filter(p => specificFreeNums.includes(p.pageNumber))
+          : pages.slice(0, freeCount);
+        return res.json({ pages: freePages, freePageNumbers: specificFreeNums, totalPages: pages.length, locked: true });
       }
-      res.json({ pages, freePages: book.freePages ?? 0, totalPages: pages.length, locked: false });
+      res.json({ pages, freePageNumbers: book.freePageNumbers ?? [], totalPages: pages.length, locked: false });
     } catch (err) {
       console.error("[library] GET pages error:", err);
       res.status(500).json({ error: "Erro" });
@@ -2410,7 +2419,7 @@ export async function registerRoutes(
   app.patch("/api/admin/library/books/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const { title, author, description, coverImageData, pdfData, priceDisplay, priceInCents, requiresPremium, isPublished, freePages } = req.body;
+      const { title, author, description, coverImageData, pdfData, priceDisplay, priceInCents, requiresPremium, isPublished, freePages, freePageNumbers } = req.body;
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
       if (author !== undefined) updates.author = author;
@@ -2422,6 +2431,7 @@ export async function registerRoutes(
       if (requiresPremium !== undefined) updates.requiresPremium = requiresPremium;
       if (isPublished !== undefined) updates.isPublished = isPublished;
       if (freePages !== undefined) updates.freePages = Number(freePages);
+      if (freePageNumbers !== undefined) updates.freePageNumbers = Array.isArray(freePageNumbers) ? freePageNumbers.map(Number) : [];
       const book = await storage.updateLibraryBook(id, updates);
       if (!book) return res.status(404).json({ error: "Não encontrado" });
       if (pdfData) {
