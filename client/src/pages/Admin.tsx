@@ -3415,28 +3415,10 @@ export default function Admin() {
                   })}
                 </div>
                 {libAccessType === "free" && (
-                  <p className="text-[10px] text-muted-foreground mt-1.5">Qualquer utilizador pode ler este livro.</p>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">Qualquer utilizador pode ler este livro completo.</p>
                 )}
                 {libAccessType === "premium" && (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-[10px] text-muted-foreground">Apenas membros Premium têm acesso completo.</p>
-                    <div>
-                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Capítulos gratuitos (prévia)</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="number"
-                          min={0}
-                          value={libForm.freePages}
-                          onChange={e => setLibForm(f => ({ ...f, freePages: Math.max(0, Number(e.target.value)) }))}
-                          className="w-24 px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60"
-                          data-testid="input-lib-free-pages"
-                        />
-                        <span className="text-[10px] text-muted-foreground">
-                          {libForm.freePages === 0 ? "Nenhum capítulo gratuito — requer Premium" : `Primeiros ${libForm.freePages} capítulo(s) visíveis para todos`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">Apenas membros Premium têm acesso completo.</p>
                 )}
                 {libAccessType === "paid" && (
                   <div className="mt-2">
@@ -3452,6 +3434,26 @@ export default function Admin() {
                         className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm"
                         data-testid="input-lib-price-reais"
                       />
+                    </div>
+                  </div>
+                )}
+                {(libAccessType === "premium" || libAccessType === "paid") && (
+                  <div className="mt-2">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Páginas gratuitas (prévia)</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="number"
+                        min={0}
+                        value={libForm.freePages}
+                        onChange={e => setLibForm(f => ({ ...f, freePages: Math.max(0, Number(e.target.value)) }))}
+                        className="w-24 px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60"
+                        data-testid="input-lib-free-pages"
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        {libForm.freePages === 0
+                          ? "Sem prévia — acesso bloqueado logo na 1ª página"
+                          : `Primeiras ${libForm.freePages} página(s) visíveis sem acesso`}
+                      </span>
                     </div>
                   </div>
                 )}
