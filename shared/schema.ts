@@ -465,6 +465,13 @@ export const insertLibraryHighlightSchema = createInsertSchema(libraryHighlights
 export type InsertLibraryHighlight = z.infer<typeof insertLibraryHighlightSchema>;
 export type LibraryHighlight = typeof libraryHighlights.$inferSelect;
 
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;

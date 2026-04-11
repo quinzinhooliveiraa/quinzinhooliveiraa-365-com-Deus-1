@@ -740,6 +740,18 @@ async function runMigrations() {
       )
     `);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
+
+    await db.execute(sql`
+      INSERT INTO app_settings (key, value) VALUES ('book_price_cents', '1990')
+      ON CONFLICT (key) DO NOTHING
+    `);
+
     console.log("[migrations] Schema sync complete");
   } catch (err) {
     console.error("[migrations] Error:", err);
@@ -2093,7 +2105,10 @@ export async function registerRoutes(
     }
   });
 
-  const BOOK_PRICE_CENTS = 1990;
+  async function getBookPriceCents(): Promise<number> {
+    const val = await storage.getSetting("book_price_cents");
+    return val ? parseInt(val, 10) : 1990;
+  }
 
   app.get("/api/book/chapters", requireAuth, async (req: Request, res: Response) => {
     try {
@@ -2157,13 +2172,14 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       const isAdmin = user?.role === "admin";
+      const pricesCents = await getBookPriceCents();
       if (isAdmin) {
-        return res.json({ purchased: true, purchasedAt: null, pricesCents: BOOK_PRICE_CENTS });
+        return res.json({ purchased: true, purchasedAt: null, pricesCents });
       }
       const purchase = await storage.getUserBookPurchase(req.session.userId!);
       const hasTimedAccess = user?.bookUntil ? new Date(user.bookUntil) > new Date() : false;
       const purchased = !!purchase || hasTimedAccess;
-      res.json({ purchased, purchasedAt: purchase?.createdAt || null, pricesCents: BOOK_PRICE_CENTS, bookUntil: user?.bookUntil || null });
+      res.json({ purchased, purchasedAt: purchase?.createdAt || null, pricesCents, bookUntil: user?.bookUntil || null });
     } catch {
       res.status(500).json({ error: "Erro ao verificar compra" });
     }
@@ -2182,8 +2198,9 @@ export async function registerRoutes(
         customerId = customer.id;
         await storage.updateUser(user.id, { stripeCustomerId: customerId });
       }
+      const bookPriceCents = await getBookPriceCents();
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: BOOK_PRICE_CENTS,
+        amount: bookPriceCents,
         currency: "brl",
         customer: customerId,
         metadata: { userId: user.id, product: "book_acasados20" },
@@ -2951,6 +2968,63 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch {
       res.status(500).json({ message: "Erro ao apagar cupão" });
+    }
+  });
+
+  app.get("/api/admin/settings", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const settings = await storage.getAllSettings();
+      res.json(settings);
+    } catch {
+      res.status(500).json({ message: "Erro ao buscar configurações" });
+    }
+  });
+
+  app.patch("/api/admin/settings", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const updates = req.body as Record<string, string>;
+      for (const [key, value] of Object.entries(updates)) {
+        await storage.setSetting(key, String(value));
+      }
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ message: "Erro ao guardar configurações" });
+    }
+  });
+
+  app.post("/api/admin/stripe/plans", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const stripe = await getUncachableStripeClient();
+      const { name, description, amount, currency, interval } = req.body;
+      if (!name || !amount || !interval) {
+        return res.status(400).json({ message: "Nome, valor e intervalo são obrigatórios" });
+      }
+      const product = await stripe.products.create({
+        name,
+        description: description || undefined,
+      });
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: Math.round(Number(amount) * 100),
+        currency: currency || "brl",
+        recurring: { interval },
+      });
+      res.json({ product_id: product.id, price_id: price.id, success: true });
+    } catch (err: any) {
+      console.error("[admin/stripe/plans] Error:", err?.message);
+      res.status(500).json({ message: err?.message || "Erro ao criar plano" });
+    }
+  });
+
+  app.delete("/api/admin/stripe/plans/:priceId", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const stripe = await getUncachableStripeClient();
+      const { priceId } = req.params;
+      await stripe.prices.update(priceId, { active: false });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[admin/stripe/plans/delete] Error:", err?.message);
+      res.status(500).json({ message: err?.message || "Erro ao arquivar plano" });
     }
   });
 

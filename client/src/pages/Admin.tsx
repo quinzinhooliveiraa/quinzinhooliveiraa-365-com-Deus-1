@@ -1059,7 +1059,7 @@ export default function Admin() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showInvite, setShowInvite] = useState(false);
-  const [activeTab, setActiveTab] = useState<"users" | "feedback" | "push" | "coupons" | "analytics" | "livro" | "biblioteca">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "feedback" | "push" | "coupons" | "analytics" | "livro" | "biblioteca" | "precos">("users");
   const [bookEditId, setBookEditId] = useState<number | null>(null);
   const [bookForm, setBookForm] = useState({ order: 1, title: "", tag: "", excerpt: "", content: "", isPreview: false, imageUrl: "" });
   const [bookFormOpen, setBookFormOpen] = useState(false);
@@ -1318,6 +1318,76 @@ export default function Admin() {
       return r.json();
     },
     enabled: !!libPageEditorBook,
+  });
+
+  const [bookPriceInput, setBookPriceInput] = useState("");
+  const [newPlanForm, setNewPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "month" | "year" });
+  const [showNewPlanForm, setShowNewPlanForm] = useState(false);
+
+  const { data: adminSettings = {}, isLoading: settingsLoading } = useQuery<Record<string, string>>({
+    queryKey: ["/api/admin/settings"],
+    queryFn: () => fetch("/api/admin/settings", { credentials: "include" }).then(r => r.json()),
+    enabled: activeTab === "precos",
+  });
+
+  const { data: stripePlansRaw = [], isLoading: plansLoading } = useQuery<{
+    product_id: string; product_name: string; product_description: string | null;
+    price_id: string; unit_amount: number | null; currency: string;
+    recurring: { interval: string; interval_count: number } | null;
+  }[]>({
+    queryKey: ["/api/stripe/products"],
+    queryFn: () => fetch("/api/stripe/products", { credentials: "include" }).then(r => r.json()),
+    enabled: activeTab === "precos",
+  });
+  const stripePlans = Array.isArray(stripePlansRaw) ? stripePlansRaw : [];
+
+  const { data: chatChannels = [], isLoading: channelsLoading } = useQuery<{
+    id: number; name: string; emoji: string; description: string | null; isPremium: boolean; isPrivate: boolean;
+  }[]>({
+    queryKey: ["/api/chat/channels"],
+    queryFn: () => fetch("/api/chat/channels", { credentials: "include" }).then(r => r.json()),
+    enabled: activeTab === "precos",
+  });
+  const channelsList = Array.isArray(chatChannels) ? chatChannels : [];
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: Record<string, string>) => apiRequest("PATCH", "/api/admin/settings", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      toast({ title: "Configurações guardadas!" });
+    },
+    onError: () => toast({ title: "Erro ao guardar configurações", variant: "destructive" }),
+  });
+
+  const createPlanMutation = useMutation({
+    mutationFn: (data: { name: string; description: string; amount: string; interval: string }) =>
+      apiRequest("POST", "/api/admin/stripe/plans", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stripe/products"] });
+      setShowNewPlanForm(false);
+      setNewPlanForm({ name: "", description: "", amount: "", interval: "month" });
+      toast({ title: "Plano criado com sucesso!" });
+    },
+    onError: (err: any) => toast({ title: err?.message || "Erro ao criar plano", variant: "destructive" }),
+  });
+
+  const archivePlanMutation = useMutation({
+    mutationFn: (priceId: string) => apiRequest("DELETE", `/api/admin/stripe/plans/${priceId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stripe/products"] });
+      toast({ title: "Plano arquivado." });
+    },
+    onError: () => toast({ title: "Erro ao arquivar plano", variant: "destructive" }),
+  });
+
+  const updateChannelPremiumMutation = useMutation({
+    mutationFn: ({ id, isPremium }: { id: number; isPremium: boolean }) =>
+      apiRequest("PATCH", `/api/chat/channels/${id}`, { is_premium: isPremium }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/channels"] });
+      toast({ title: "Canal atualizado." });
+    },
+    onError: () => toast({ title: "Erro ao atualizar canal", variant: "destructive" }),
   });
 
   async function saveLibPage(bookId: number, pageNumber: number, content: string, title?: string, subtitle?: string, tag?: string, newPageNumber?: number) {
@@ -1680,6 +1750,7 @@ export default function Admin() {
           { id: "coupons", icon: <Ticket size={14} />, label: "Cupões" },
           { id: "livro", icon: <BookOpen size={14} />, label: "Devocional" },
           { id: "biblioteca", icon: <Library size={14} />, label: "Biblioteca" },
+          { id: "precos", icon: <CreditCard size={14} />, label: "Preços" },
         ] as const).map(tab => (
           <button
             key={tab.id}
@@ -4606,6 +4677,223 @@ function CouponsPanel() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === "precos" && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl border border-border bg-card space-y-4">
+            <div className="flex items-center gap-2">
+              <BookOpen size={16} className="text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Preço do Livro Devocional</h2>
+            </div>
+            {settingsLoading ? (
+              <div className="h-10 bg-muted animate-pulse rounded-md" />
+            ) : (
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs text-muted-foreground">Valor (em reais, ex: 19.90)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full border border-border rounded-md pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder={(parseInt(adminSettings.book_price_cents ?? "1990", 10) / 100).toFixed(2)}
+                      value={bookPriceInput}
+                      onChange={e => setBookPriceInput(e.target.value)}
+                      data-testid="input-book-price"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Atual: R$ {(parseInt(adminSettings.book_price_cents ?? "1990", 10) / 100).toFixed(2).replace(".", ",")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const cents = Math.round(parseFloat(bookPriceInput) * 100);
+                    if (!cents || isNaN(cents) || cents < 0) {
+                      toast({ title: "Valor inválido", variant: "destructive" });
+                      return;
+                    }
+                    updateSettingsMutation.mutate({ book_price_cents: String(cents) });
+                    setBookPriceInput("");
+                  }}
+                  disabled={updateSettingsMutation.isPending || !bookPriceInput}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-sm font-medium disabled:opacity-50"
+                  data-testid="button-save-book-price"
+                >
+                  <Check size={14} />
+                  Guardar
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 rounded-xl border border-border bg-card space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <CreditCard size={16} className="text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Planos de Assinatura (Stripe)</h2>
+              </div>
+              <button
+                onClick={() => setShowNewPlanForm(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-foreground text-background text-xs font-medium"
+                data-testid="button-toggle-new-plan"
+              >
+                {showNewPlanForm ? <X size={12} /> : <Plus size={12} />}
+                {showNewPlanForm ? "Cancelar" : "Novo Plano"}
+              </button>
+            </div>
+
+            {showNewPlanForm && (
+              <div className="p-3 rounded-lg border border-border space-y-3">
+                <p className="text-xs font-medium text-muted-foreground">Criar novo plano no Stripe</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-xs text-muted-foreground">Nome do Plano *</label>
+                    <input
+                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="ex: Premium Mensal"
+                      value={newPlanForm.name}
+                      onChange={e => setNewPlanForm(p => ({ ...p, name: e.target.value }))}
+                      data-testid="input-plan-name"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-xs text-muted-foreground">Descrição</label>
+                    <input
+                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="ex: Acesso completo à plataforma"
+                      value={newPlanForm.description}
+                      onChange={e => setNewPlanForm(p => ({ ...p, description: e.target.value }))}
+                      data-testid="input-plan-description"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Valor (R$) *</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="w-full border border-border rounded-md pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="19.90"
+                        value={newPlanForm.amount}
+                        onChange={e => setNewPlanForm(p => ({ ...p, amount: e.target.value }))}
+                        data-testid="input-plan-amount"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Período *</label>
+                    <select
+                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={newPlanForm.interval}
+                      onChange={e => setNewPlanForm(p => ({ ...p, interval: e.target.value as "month" | "year" }))}
+                      data-testid="select-plan-interval"
+                    >
+                      <option value="month">Mensal</option>
+                      <option value="year">Anual</option>
+                    </select>
+                  </div>
+                </div>
+                <button
+                  onClick={() => createPlanMutation.mutate(newPlanForm)}
+                  disabled={createPlanMutation.isPending || !newPlanForm.name || !newPlanForm.amount}
+                  className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-sm font-medium disabled:opacity-50"
+                  data-testid="button-create-plan"
+                >
+                  {createPlanMutation.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Plus size={13} />}
+                  Criar Plano no Stripe
+                </button>
+              </div>
+            )}
+
+            {plansLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-md" />)}
+              </div>
+            ) : stripePlans.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Nenhum plano ativo no Stripe. Configura o Stripe para ver os planos.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {stripePlans.map(plan => (
+                  <div key={plan.price_id} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-border" data-testid={`plan-row-${plan.price_id}`}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{plan.product_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        R$ {((plan.unit_amount ?? 0) / 100).toFixed(2).replace(".", ",")}
+                        {plan.recurring ? ` / ${plan.recurring.interval === "month" ? "mês" : "ano"}` : ""}
+                        {plan.product_description ? ` · ${plan.product_description}` : ""}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 font-mono truncate">{plan.price_id}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Arquivar o plano "${plan.product_name}"? Utilizadores existentes não serão afetados.`)) {
+                          archivePlanMutation.mutate(plan.price_id);
+                        }
+                      }}
+                      disabled={archivePlanMutation.isPending}
+                      className="text-muted-foreground hover:text-red-500 transition-colors flex-shrink-0"
+                      title="Arquivar plano"
+                      data-testid={`button-archive-plan-${plan.price_id}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 rounded-xl border border-border bg-card space-y-4">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={16} className="text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Comunidades — Acesso Premium</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">Canais marcados como premium só são acessíveis por utilizadores com assinatura ativa.</p>
+            {channelsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted animate-pulse rounded-md" />)}
+              </div>
+            ) : channelsList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum canal encontrado.</p>
+            ) : (
+              <div className="space-y-2">
+                {channelsList.map(ch => (
+                  <div key={ch.id} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-border" data-testid={`channel-row-${ch.id}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">{ch.emoji}</span>
+                        <p className="text-sm font-medium truncate">{ch.name}</p>
+                        {ch.isPremium && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">Premium</span>
+                        )}
+                      </div>
+                      {ch.description && <p className="text-xs text-muted-foreground truncate ml-6">{ch.description}</p>}
+                    </div>
+                    <button
+                      onClick={() => updateChannelPremiumMutation.mutate({ id: ch.id, isPremium: !ch.isPremium })}
+                      disabled={updateChannelPremiumMutation.isPending}
+                      className="flex-shrink-0"
+                      title={ch.isPremium ? "Remover acesso premium" : "Tornar premium"}
+                      data-testid={`toggle-channel-premium-${ch.id}`}
+                    >
+                      {ch.isPremium
+                        ? <ToggleRight size={24} className="text-primary" />
+                        : <ToggleLeft size={24} className="text-muted-foreground" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
