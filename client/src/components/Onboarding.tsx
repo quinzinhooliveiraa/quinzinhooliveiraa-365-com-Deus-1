@@ -287,24 +287,24 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
         <div className={`w-full max-w-sm flex flex-col items-center my-auto transition-all duration-300 ease-out ${slideClass}`}>
 
           {currentStep === "welcome" && (
-            <div className="flex flex-col items-center text-center space-y-6">
+            <div className="flex flex-col items-center text-center space-y-4">
               <div className="relative flex items-center justify-center">
                 <div className="animate-float">
-                  <div className="w-40 h-56 rounded-r-xl rounded-l-sm shadow-2xl shadow-primary/20 overflow-hidden relative border-l-[6px] border-primary/30 transform -rotate-2 hover:rotate-0 transition-transform duration-700 animate-pulse-glow">
+                  <div className="w-32 h-44 rounded-r-xl rounded-l-sm shadow-2xl shadow-primary/20 overflow-hidden relative border-l-[6px] border-primary/30 transform -rotate-2 hover:rotate-0 transition-transform duration-700 animate-pulse-glow">
                     <img src={bookCover} alt="365 Encontros com Deus Pai" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-r from-black/15 to-transparent pointer-events-none" />
                   </div>
                 </div>
-                <div className="absolute -top-6 -right-8 w-20 h-20 pointer-events-none">
+                <div className="absolute -top-4 -right-6 w-16 h-16 pointer-events-none">
                   <LottiePlayer
                     url={STEP_ANIMATIONS.welcome}
-                    fallback={<Sparkles size={32} className="text-primary/60 animate-pulse" />}
-                    className="w-20 h-20"
+                    fallback={<Sparkles size={24} className="text-primary/60 animate-pulse" />}
+                    className="w-16 h-16"
                   />
                 </div>
               </div>
-              <div className="space-y-3 pt-4">
-                <h1 className="text-3xl font-serif text-foreground leading-tight stagger-1">
+              <div className="space-y-2 pt-2">
+                <h1 className="text-2xl font-serif text-foreground leading-tight stagger-1">
                   Bem-vindo a<br /><span className="text-primary">365 Encontros com Deus Pai</span>
                 </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed px-2 stagger-2">
@@ -316,20 +316,20 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
               </div>
               <div className="w-full bg-primary/5 border border-primary/15 rounded-xl p-3 stagger-3">
                 <div className="flex items-center justify-center gap-1.5 mb-2">
-                  <ShieldCheck size={14} className="text-primary" />
+                  <ShieldCheck size={13} className="text-primary" />
                   <span className="text-xs font-semibold text-primary">Seus dados estão protegidos</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="flex flex-col items-center gap-1">
-                    <ShieldCheck size={16} className="text-primary/70" />
+                    <ShieldCheck size={14} className="text-primary/70" />
                     <span className="text-[10px] text-muted-foreground leading-tight">E-mail criptografado</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
-                    <ShieldCheck size={16} className="text-primary/70" />
+                    <ShieldCheck size={14} className="text-primary/70" />
                     <span className="text-[10px] text-muted-foreground leading-tight">Senha protegida</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
-                    <ShieldCheck size={16} className="text-primary/70" />
+                    <ShieldCheck size={14} className="text-primary/70" />
                     <span className="text-[10px] text-muted-foreground leading-tight">Cartão via Stripe</span>
                   </div>
                 </div>
