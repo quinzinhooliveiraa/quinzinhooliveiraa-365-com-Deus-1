@@ -1834,14 +1834,20 @@ function LibraryReader({ bookId, bookTitle, bookAuthor, onClose }: {
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { data: pages = [], isLoading } = useQuery<{ id: number; pageNumber: number; content: string; title: string | null; subtitle: string | null; tag: string | null }[]>({
+  type LibPage = { id: number; pageNumber: number; content: string; title: string | null; subtitle: string | null; tag: string | null };
+  type LibPagesResponse = { pages: LibPage[]; freePages: number; totalPages: number; locked: boolean };
+
+  const { data: libPagesData, isLoading } = useQuery<LibPagesResponse>({
     queryKey: ["/api/library/books", bookId, "pages"],
     queryFn: async () => {
       const r = await fetch(`/api/library/books/${bookId}/pages`, { credentials: "include" });
-      if (!r.ok) return [];
+      if (!r.ok) return { pages: [], freePages: 0, totalPages: 0, locked: false };
       return r.json();
     },
   });
+  const pages = libPagesData?.pages ?? [];
+  const libLocked = libPagesData?.locked ?? false;
+  const libTotalPages = libPagesData?.totalPages ?? pages.length;
 
   const { data: highlights = [] } = useQuery<LibHighlight[]>({
     queryKey: ["/api/library/highlights", bookId],
@@ -2256,6 +2262,23 @@ function LibraryReader({ bookId, bookTitle, bookAuthor, onClose }: {
         )}
       </div>
 
+      {/* Lock banner — shown on last free page when book requires premium */}
+      {libLocked && safeCurrentPage === totalPages - 1 && (
+        <div className="shrink-0 mx-4 mb-3 rounded-xl overflow-hidden" style={{ border: "1px solid var(--bk-sep)", background: "var(--bk-bg)" }}>
+          <div className="px-4 py-4 text-center space-y-2">
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="text-sm font-semibold" style={{ color: "var(--bk-ink)" }}>Continuar lendo</span>
+            </div>
+            <p className="text-[12px]" style={{ color: "var(--bk-muted)" }}>
+              Este livro tem {libTotalPages} capítulos no total. Os restantes {libTotalPages - totalPages} estão disponíveis para membros Premium.
+            </p>
+            <a href="/premium" className="inline-block mt-1 px-5 py-2.5 rounded-full text-xs font-semibold text-white" style={{ background: "var(--bk-accent)" }}>
+              Ver plano Premium
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Highlight toolbar (new selection) */}
       {pendingHL && (
         <div data-hl-toolbar
@@ -2319,19 +2342,20 @@ function LibraryReader({ bookId, bookTitle, bookAuthor, onClose }: {
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] bk-muted">{safeCurrentPage + 1}</span>
               <div className="flex gap-0.5">
-                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                  const pi = totalPages <= 7 ? i : Math.round(i * (totalPages - 1) / 6);
+                {Array.from({ length: Math.min(libTotalPages, 7) }, (_, i) => {
+                  const pi = libTotalPages <= 7 ? i : Math.round(i * (libTotalPages - 1) / 6);
                   const isActive = pi === safeCurrentPage;
+                  const isLocked = libLocked && pi >= totalPages;
                   return (
-                    <button key={i} onClick={() => goTo(pi, pi > safeCurrentPage ? "left" : "right")}
+                    <button key={i} onClick={() => !isLocked && goTo(pi, pi > safeCurrentPage ? "left" : "right")}
                       className="rounded-full transition-all"
-                      style={{ width: isActive ? 14 : 6, height: 6, background: isActive ? "var(--bk-accent)" : "var(--bk-sep)" }} />
+                      style={{ width: isActive ? 14 : 6, height: 6, background: isActive ? "var(--bk-accent)" : isLocked ? "var(--bk-sep)" : "var(--bk-sep)", opacity: isLocked ? 0.35 : 1 }} />
                   );
                 })}
               </div>
-              <span className="text-[11px] bk-muted">{totalPages}</span>
+              <span className="text-[11px] bk-muted">{libTotalPages}</span>
             </div>
-            <button onClick={() => goTo(safeCurrentPage + 1, "left")} disabled={safeCurrentPage === totalPages - 1}
+            <button onClick={() => goTo(safeCurrentPage + 1, "left")} disabled={safeCurrentPage === totalPages - 1 || (libLocked && safeCurrentPage >= totalPages - 1)}
               className="flex items-center gap-1.5 text-sm disabled:opacity-30 active:opacity-50"
               style={{ color: "var(--bk-accent)" }}
               data-testid="btn-lib-next">

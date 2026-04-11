@@ -2355,14 +2355,16 @@ export async function registerRoutes(
     try {
       const book = await storage.getLibraryBook(Number(req.params.id));
       if (!book || !book.isPublished) return res.status(404).json({ error: "Não encontrado" });
-      if (book.requiresPremium) {
-        const user = req.user as any;
-        if (!user?.hasPremium && user?.role !== "admin") {
-          return res.status(403).json({ error: "Requer premium" });
-        }
-      }
+      const user = req.user as any;
+      const isPrivileged = user?.hasPremium || user?.role === "admin";
       const pages = await storage.getLibraryPages(Number(req.params.id));
-      res.json(pages);
+      if (book.requiresPremium && !isPrivileged) {
+        const freeCount = book.freePages ?? 0;
+        if (freeCount <= 0) return res.status(403).json({ error: "Requer premium" });
+        const freeSlice = pages.slice(0, freeCount);
+        return res.json({ pages: freeSlice, freePages: freeCount, totalPages: pages.length, locked: true });
+      }
+      res.json({ pages, freePages: book.freePages ?? 0, totalPages: pages.length, locked: false });
     } catch (err) {
       console.error("[library] GET pages error:", err);
       res.status(500).json({ error: "Erro" });
@@ -2391,7 +2393,7 @@ export async function registerRoutes(
   app.patch("/api/admin/library/books/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const { title, author, description, coverImageData, pdfData, priceDisplay, priceInCents, requiresPremium, isPublished } = req.body;
+      const { title, author, description, coverImageData, pdfData, priceDisplay, priceInCents, requiresPremium, isPublished, freePages } = req.body;
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
       if (author !== undefined) updates.author = author;
@@ -2402,6 +2404,7 @@ export async function registerRoutes(
       if (priceInCents !== undefined) updates.priceInCents = priceInCents;
       if (requiresPremium !== undefined) updates.requiresPremium = requiresPremium;
       if (isPublished !== undefined) updates.isPublished = isPublished;
+      if (freePages !== undefined) updates.freePages = Number(freePages);
       const book = await storage.updateLibraryBook(id, updates);
       if (!book) return res.status(404).json({ error: "Não encontrado" });
       if (pdfData) {

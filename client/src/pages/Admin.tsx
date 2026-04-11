@@ -1066,8 +1066,8 @@ export default function Admin() {
   const [bookPreview, setBookPreview] = useState(false);
   const bookTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  type LibraryBookMeta = { id: number; title: string; author: string; description: string; coverImageData: string | null; priceDisplay: string; priceInCents: number; requiresPremium: boolean; isPublished: boolean; createdAt: string };
-  const emptyLibForm = { title: "", author: "", description: "", priceDisplay: "Grátis", priceInCents: 0, requiresPremium: false, isPublished: false, coverImageData: "" as string, pdfData: "" as string };
+  type LibraryBookMeta = { id: number; title: string; author: string; description: string; coverImageData: string | null; priceDisplay: string; priceInCents: number; requiresPremium: boolean; isPublished: boolean; freePages: number; createdAt: string };
+  const emptyLibForm = { title: "", author: "", description: "", priceDisplay: "Grátis", priceInCents: 0, requiresPremium: false, isPublished: false, coverImageData: "" as string, pdfData: "" as string, freePages: 3 };
   const [libFormOpen, setLibFormOpen] = useState(false);
   const [libEditId, setLibEditId] = useState<number | null>(null);
   const [libForm, setLibForm] = useState(emptyLibForm);
@@ -1410,7 +1410,7 @@ export default function Admin() {
 
   function openLibEdit(book: LibraryBookMeta) {
     setLibEditId(book.id);
-    setLibForm({ title: book.title, author: book.author, description: book.description, priceDisplay: book.priceDisplay, priceInCents: book.priceInCents, requiresPremium: book.requiresPremium, isPublished: book.isPublished, coverImageData: book.coverImageData || "", pdfData: "" });
+    setLibForm({ title: book.title, author: book.author, description: book.description, priceDisplay: book.priceDisplay, priceInCents: book.priceInCents, requiresPremium: book.requiresPremium, isPublished: book.isPublished, coverImageData: book.coverImageData || "", pdfData: "", freePages: book.freePages ?? 3 });
     if (book.requiresPremium) {
       setLibAccessType("premium");
       setLibPriceReais("");
@@ -1456,7 +1456,7 @@ export default function Admin() {
     const pricing = computeLibPricing();
     const data = { ...libForm, ...pricing };
     if (libEditId !== null) {
-      const patch: Record<string, any> = { title: data.title, author: data.author, description: data.description, ...pricing, isPublished: data.isPublished };
+      const patch: Record<string, any> = { title: data.title, author: data.author, description: data.description, ...pricing, isPublished: data.isPublished, freePages: data.freePages };
       if (data.coverImageData) patch.coverImageData = data.coverImageData;
       if (data.pdfData) patch.pdfData = data.pdfData;
       updateLibBookMutation.mutate({ id: libEditId, data: patch });
@@ -3347,7 +3347,25 @@ export default function Admin() {
                   <p className="text-[10px] text-muted-foreground mt-1.5">Qualquer utilizador pode ler este livro.</p>
                 )}
                 {libAccessType === "premium" && (
-                  <p className="text-[10px] text-muted-foreground mt-1.5">Apenas membros Premium têm acesso.</p>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[10px] text-muted-foreground">Apenas membros Premium têm acesso completo.</p>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Capítulos gratuitos (prévia)</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          min={0}
+                          value={libForm.freePages}
+                          onChange={e => setLibForm(f => ({ ...f, freePages: Math.max(0, Number(e.target.value)) }))}
+                          className="w-24 px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60"
+                          data-testid="input-lib-free-pages"
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          {libForm.freePages === 0 ? "Nenhum capítulo gratuito — requer Premium" : `Primeiros ${libForm.freePages} capítulo(s) visíveis para todos`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 )}
                 {libAccessType === "paid" && (
                   <div className="mt-2">
@@ -3432,6 +3450,11 @@ export default function Admin() {
                   <div className="flex items-center gap-2 mt-1 flex-wrap gap-y-1">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{book.priceDisplay}</span>
                     {book.requiresPremium && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Premium</span>}
+                    {book.requiresPremium && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                        {(book.freePages ?? 0) === 0 ? "Sem prévia" : `${book.freePages} cap. grátis`}
+                      </span>
+                    )}
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${book.isPublished ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>{book.isPublished ? "Publicado" : "Rascunho"}</span>
                   </div>
                 </div>
