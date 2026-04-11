@@ -45,17 +45,26 @@ function LottiePlayer({
     setAnimData(null);
     setFailed(false);
     setVisible(false);
-    // Use the native fetch saved before any browser extension could override window.fetch,
-    // to avoid extension monkey-patches throwing unhandled global errors.
-    const nativeFetch: typeof fetch = (window as any).__nativeFetch ?? fetch;
+    // Use XMLHttpRequest instead of fetch so browser extension monkey-patches
+    // on window.fetch don't intercept this request and trigger global errors.
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url);
+    xhr.responseType = "json";
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setAnimData(xhr.response);
+        setTimeout(() => setVisible(true), 50);
+      } else {
+        setFailed(true);
+      }
+    };
+    xhr.onerror = () => setFailed(true);
     try {
-      nativeFetch(url)
-        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-        .then(data => { setAnimData(data); setTimeout(() => setVisible(true), 50); })
-        .catch(() => setFailed(true));
+      xhr.send();
     } catch {
       setFailed(true);
     }
+    return () => xhr.abort();
   }, [url]);
 
   return (
