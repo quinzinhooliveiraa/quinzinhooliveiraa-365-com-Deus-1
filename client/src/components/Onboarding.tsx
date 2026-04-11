@@ -45,10 +45,14 @@ function LottiePlayer({
     setAnimData(null);
     setFailed(false);
     setVisible(false);
-    fetch(url)
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(data => { setAnimData(data); setTimeout(() => setVisible(true), 50); })
-      .catch(() => setFailed(true));
+    try {
+      fetch(url)
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(data => { setAnimData(data); setTimeout(() => setVisible(true), 50); })
+        .catch(() => setFailed(true));
+    } catch {
+      setFailed(true);
+    }
   }, [url]);
 
   return (
