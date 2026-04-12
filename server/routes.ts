@@ -754,6 +754,18 @@ async function runMigrations() {
 
     await db.execute(sql`ALTER TABLE library_books ADD COLUMN IF NOT EXISTS free_page_numbers INTEGER[] NOT NULL DEFAULT '{}'::integer[]`);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS library_purchases (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        book_id INTEGER NOT NULL REFERENCES library_books(id) ON DELETE CASCADE,
+        stripe_payment_intent_id TEXT NOT NULL UNIQUE,
+        amount_cents INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        UNIQUE(user_id, book_id)
+      )
+    `);
+
     console.log("[migrations] Schema sync complete");
   } catch (err) {
     console.error("[migrations] Error:", err);
@@ -2388,10 +2400,13 @@ export async function registerRoutes(
   });
 
   // ─── Library Books ────────────────────────────────────────────────────────
-  app.get("/api/library/books", requireAuth, async (_req: Request, res: Response) => {
+  app.get("/api/library/books", requireAuth, async (req: Request, res: Response) => {
     try {
       const books = await storage.listLibraryBooks(false);
-      res.json(books);
+      const userId = req.session.userId!;
+      const purchasedIds = await storage.getUserLibraryPurchasedBookIds(userId);
+      const withPurchase = books.map(b => ({ ...b, isPurchased: purchasedIds.has(b.id) }));
+      res.json(withPurchase);
     } catch {
       res.status(500).json({ error: "Erro" });
     }
@@ -2594,6 +2609,59 @@ export async function registerRoutes(
       res.status(500).json({ error: "Erro" });
     }
   });
+  // ── Library Book Purchases ────────────────────────────────────────────────
+  app.post("/api/library/books/:id/create-payment-intent", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const bookId = Number(req.params.id);
+      const userId = req.session.userId!;
+      const book = await storage.getLibraryBook(bookId);
+      if (!book || !book.isPublished) return res.status(404).json({ error: "Livro não encontrado" });
+      if (book.priceInCents <= 0) return res.status(400).json({ error: "Este livro é gratuito" });
+      const existing = await storage.getLibraryPurchase(userId, bookId);
+      if (existing) return res.status(400).json({ error: "Livro já comprado" });
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(401).json({ error: "Não autenticado" });
+      const stripe = await getUncachableStripeClient();
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({ email: user.email, name: user.name });
+        customerId = customer.id;
+        await storage.updateUser(userId, { stripeCustomerId: customerId });
+      }
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: book.priceInCents,
+        currency: "brl",
+        customer: customerId,
+        metadata: { userId, product: "library_book", bookId: String(bookId) },
+        automatic_payment_methods: { enabled: true },
+      });
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (err: any) {
+      console.error("[library] create-payment-intent error:", err?.message);
+      res.status(500).json({ error: "Erro ao criar pagamento" });
+    }
+  });
+
+  app.post("/api/library/books/:id/confirm-purchase", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const bookId = Number(req.params.id);
+      const userId = req.session.userId!;
+      const { paymentIntentId } = req.body;
+      if (!paymentIntentId) return res.status(400).json({ error: "paymentIntentId obrigatório" });
+      const existing = await storage.getLibraryPurchase(userId, bookId);
+      if (existing) return res.json({ ok: true, alreadyOwned: true });
+      const stripe = await getUncachableStripeClient();
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (pi.status !== "succeeded") return res.status(400).json({ error: "Pagamento não confirmado" });
+      if (pi.metadata?.userId !== userId) return res.status(403).json({ error: "Pagamento inválido" });
+      await storage.createLibraryPurchase(userId, bookId, paymentIntentId, pi.amount);
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[library] confirm-purchase error:", err?.message);
+      res.status(500).json({ error: "Erro ao confirmar compra" });
+    }
+  });
+
   // ── end Library Books ──────────────────────────────────────────────────────
 
   app.get("/api/admin/book/purchases", requireAdmin, async (_req: Request, res: Response) => {

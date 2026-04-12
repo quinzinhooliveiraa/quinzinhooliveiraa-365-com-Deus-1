@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, BookOpen, Lock, CheckCircle2, ShieldCheck } from "lucide-react";
+import { X, BookOpen, Lock, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -13,9 +13,11 @@ interface BookPurchaseModalProps {
   priceLabel: string;
   onSuccess: () => void;
   onClose: () => void;
+  libraryBookId?: number;
+  libraryBookTitle?: string;
 }
 
-function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps) {
+function PaymentForm({ priceLabel, onSuccess, onClose, libraryBookId, libraryBookTitle }: BookPurchaseModalProps) {
   const stripe = useStripe();
   const elements = useElements();
   const queryClient = useQueryClient();
@@ -23,6 +25,12 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  const isLibrary = !!libraryBookId;
+  const title = isLibrary ? (libraryBookTitle || "Livro") : "365 Encontros com Deus Pai";
+  const confirmUrl = isLibrary
+    ? `/api/library/books/${libraryBookId}/confirm-purchase`
+    : "/api/book/confirm-purchase";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +42,7 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
       const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: "if_required",
-        confirmParams: {
-          return_url: window.location.href,
-        },
+        confirmParams: { return_url: window.location.href },
       });
 
       if (stripeError) {
@@ -46,7 +52,7 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
       }
 
       if (paymentIntent?.status === "succeeded") {
-        const confirmRes = await fetch("/api/book/confirm-purchase", {
+        const confirmRes = await fetch(confirmUrl, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -59,8 +65,12 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
           return;
         }
         setSuccess(true);
-        queryClient.invalidateQueries({ queryKey: ["/api/book/purchase-status"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/book/chapters"] });
+        if (isLibrary) {
+          queryClient.invalidateQueries({ queryKey: ["/api/library/books"] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["/api/book/purchase-status"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/book/chapters"] });
+        }
         setTimeout(() => onSuccess(), 1800);
       } else {
         setError("Pagamento não confirmado. Tenta novamente.");
@@ -79,7 +89,9 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
           <CheckCircle2 size={32} className="text-green-500" />
         </div>
         <h2 className="text-xl font-bold font-serif text-foreground">Livro desbloqueado!</h2>
-        <p className="text-sm text-muted-foreground">Todos os capítulos estão agora disponíveis para ti.</p>
+        <p className="text-sm text-muted-foreground">
+          {isLibrary ? "Podes ler agora na Biblioteca." : "Todos os capítulos estão agora disponíveis para ti."}
+        </p>
       </div>
     );
   }
@@ -100,7 +112,7 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-5 flex items-center justify-between">
-          <span className="text-sm text-foreground font-medium">365 Encontros com Deus Pai</span>
+          <span className="text-sm text-foreground font-medium">{title}</span>
           <span className="text-base font-bold text-primary">{priceLabel}</span>
         </div>
 
@@ -110,10 +122,7 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
             options={{
               layout: "tabs",
               paymentMethodOrder: ["apple_pay", "google_pay", "card"],
-              wallets: {
-                applePay: "auto",
-                googlePay: "auto",
-              },
+              wallets: { applePay: "auto", googlePay: "auto" },
             }}
           />
         </div>
@@ -134,7 +143,12 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
       </div>
 
       <div className="px-6 pb-2 space-y-2">
-        {error && <p className="text-xs text-red-500 text-center py-1">{error}</p>}
+        {error && (
+          <div className="flex items-center gap-2 text-red-500 text-xs py-1">
+            <AlertCircle size={14} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <button
           type="submit"
@@ -158,13 +172,17 @@ function PaymentForm({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps)
   );
 }
 
-export default function BookPurchaseModal({ priceLabel, onSuccess, onClose }: BookPurchaseModalProps) {
+export default function BookPurchaseModal({ priceLabel, onSuccess, onClose, libraryBookId, libraryBookTitle }: BookPurchaseModalProps) {
   const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
   const [clientSecret, setClientSecret] = useState("");
   const [loadError, setLoadError] = useState("");
 
+  const isLibrary = !!libraryBookId;
+  const intentUrl = isLibrary
+    ? `/api/library/books/${libraryBookId}/create-payment-intent`
+    : "/api/book/create-payment-intent";
+
   useEffect(() => {
-    // Fetch Stripe key and create payment intent in parallel
     const keyFetch = fetch("/api/stripe/config", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
@@ -172,10 +190,7 @@ export default function BookPurchaseModal({ priceLabel, onSuccess, onClose }: Bo
         throw new Error("Stripe não configurado.");
       });
 
-    const intentFetch = fetch("/api/book/create-payment-intent", {
-      method: "POST",
-      credentials: "include",
-    })
+    const intentFetch = fetch(intentUrl, { method: "POST", credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
         if (!d.clientSecret) throw new Error(d.error || "Erro ao criar pagamento.");
@@ -188,7 +203,7 @@ export default function BookPurchaseModal({ priceLabel, onSuccess, onClose }: Bo
         setClientSecret(intentData.clientSecret);
       })
       .catch((err) => setLoadError(err.message || "Erro de ligação."));
-  }, []);
+  }, [intentUrl]);
 
   const isDark =
     typeof document !== "undefined" &&
@@ -214,7 +229,8 @@ export default function BookPurchaseModal({ priceLabel, onSuccess, onClose }: Bo
         </button>
 
         {loadError ? (
-          <div className="px-6 py-10 text-center">
+          <div className="px-6 py-10 text-center flex flex-col items-center gap-3">
+            <AlertCircle size={28} className="text-red-400" />
             <p className="text-sm text-muted-foreground">{loadError}</p>
           </div>
         ) : !clientSecret || !stripePromise ? (
@@ -228,10 +244,7 @@ export default function BookPurchaseModal({ priceLabel, onSuccess, onClose }: Bo
               clientSecret,
               appearance: {
                 theme: isDark ? "night" : "stripe",
-                variables: {
-                  borderRadius: "12px",
-                  fontSizeBase: "15px",
-                },
+                variables: { borderRadius: "12px", fontSizeBase: "15px" },
               },
             }}
           >
@@ -239,6 +252,8 @@ export default function BookPurchaseModal({ priceLabel, onSuccess, onClose }: Bo
               priceLabel={priceLabel}
               onSuccess={onSuccess}
               onClose={onClose}
+              libraryBookId={libraryBookId}
+              libraryBookTitle={libraryBookTitle}
             />
           </Elements>
         )}

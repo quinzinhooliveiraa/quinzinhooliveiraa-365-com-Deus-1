@@ -466,6 +466,17 @@ export const insertLibraryHighlightSchema = createInsertSchema(libraryHighlights
 export type InsertLibraryHighlight = z.infer<typeof insertLibraryHighlightSchema>;
 export type LibraryHighlight = typeof libraryHighlights.$inferSelect;
 
+export const libraryPurchases = pgTable("library_purchases", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bookId: integer("book_id").notNull().references(() => libraryBooks.id, { onDelete: "cascade" }),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id").notNull().unique(),
+  amountCents: integer("amount_cents").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type LibraryPurchase = typeof libraryPurchases.$inferSelect;
+
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),

@@ -78,11 +78,13 @@ import {
   libraryBooks,
   libraryPages,
   libraryHighlights,
+  libraryPurchases,
   type LibraryBook,
   type InsertLibraryBook,
   type LibraryPage,
   type LibraryHighlight,
   type InsertLibraryHighlight,
+  type LibraryPurchase,
   appSettings,
   type AppSetting,
 } from "@shared/schema";
@@ -186,6 +188,10 @@ export interface IStorage {
   getBookPurchases(): Promise<{ userId: string; name: string; email: string; amountCents: number; createdAt: Date }[]>;
   getAllBookPurchaseUserIds(): Promise<Set<string>>;
   revokeBookAccess(userId: string): Promise<void>;
+
+  getLibraryPurchase(userId: string, bookId: number): Promise<LibraryPurchase | undefined>;
+  getUserLibraryPurchasedBookIds(userId: string): Promise<Set<number>>;
+  createLibraryPurchase(userId: string, bookId: number, paymentIntentId: string, amountCents: number): Promise<LibraryPurchase>;
 
   getBookHighlights(userId: string): Promise<BookHighlight[]>;
   createBookHighlight(data: InsertBookHighlight): Promise<BookHighlight>;
@@ -1030,6 +1036,24 @@ export class DatabaseStorage implements IStorage {
 
   async revokeBookAccess(userId: string): Promise<void> {
     await db.delete(bookPurchases).where(eq(bookPurchases.userId, userId));
+  }
+
+  async getLibraryPurchase(userId: string, bookId: number): Promise<LibraryPurchase | undefined> {
+    const [row] = await db.select().from(libraryPurchases)
+      .where(and(eq(libraryPurchases.userId, userId), eq(libraryPurchases.bookId, bookId)));
+    return row;
+  }
+
+  async getUserLibraryPurchasedBookIds(userId: string): Promise<Set<number>> {
+    const rows = await db.select({ bookId: libraryPurchases.bookId })
+      .from(libraryPurchases).where(eq(libraryPurchases.userId, userId));
+    return new Set(rows.map(r => r.bookId));
+  }
+
+  async createLibraryPurchase(userId: string, bookId: number, paymentIntentId: string, amountCents: number): Promise<LibraryPurchase> {
+    const [row] = await db.insert(libraryPurchases)
+      .values({ userId, bookId, stripePaymentIntentId: paymentIntentId, amountCents }).returning();
+    return row;
   }
 
   async getBookHighlights(userId: string): Promise<BookHighlight[]> {

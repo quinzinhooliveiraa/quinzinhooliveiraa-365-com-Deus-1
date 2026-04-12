@@ -2412,7 +2412,7 @@ export default function Book() {
   const purchased = purchaseStatus?.purchased ?? false;
   const priceLabel = purchaseStatus?.pricesCents ? formatPrice(purchaseStatus.pricesCents) : "R$\u00a019,90";
 
-  type LibBook = { id: number; title: string; author: string; description: string; coverImageData: string | null; priceDisplay: string; priceInCents: number; requiresPremium: boolean; isPublished: boolean; freePages: number; pageCount: number };
+  type LibBook = { id: number; title: string; author: string; description: string; coverImageData: string | null; priceDisplay: string; priceInCents: number; requiresPremium: boolean; isPublished: boolean; freePages: number; pageCount: number; isPurchased: boolean };
   const { data: libBooks = [], isLoading: libLoading } = useQuery<LibBook[]>({
     queryKey: ["/api/library/books"],
     queryFn: async () => {
@@ -2427,6 +2427,7 @@ export default function Book() {
     refetchOnWindowFocus: true,
   });
   const [libReaderBook, setLibReaderBook] = useState<{ id: number; title: string; author: string } | null>(null);
+  const [libPurchaseBook, setLibPurchaseBook] = useState<LibBook | null>(null);
 
   // Sort chapters: front-matter first (by order), then chapters
   const sortedChapters = [...chapters].sort((a, b) => a.order - b.order);
@@ -2860,7 +2861,7 @@ export default function Book() {
             <div className={libBooks.length === 1 ? "flex justify-center" : "grid grid-cols-2 gap-x-6 gap-y-8"}>
               {libBooks.map(book => {
                 const isFree = book.priceInCents === 0 && !book.requiresPremium;
-                const isLocked = book.requiresPremium ? !hasPremium : book.priceInCents > 0;
+                const isLocked = book.requiresPremium ? !hasPremium : (book.priceInCents > 0 && !book.isPurchased);
                 const hasProgress = (() => {
                   try { const s = localStorage.getItem(`lib-prog-${book.id}`); return s ? JSON.parse(s).p > 0 : false; } catch { return false; }
                 })();
@@ -2949,11 +2950,20 @@ export default function Book() {
                               data-testid={`btn-lib-preview-${book.id}`}
                             >Amostra</button>
                           )}
-                          <button
-                            onClick={e => e.stopPropagation()}
-                            className="flex-1 py-0.5 rounded bg-primary text-primary-foreground text-[7px] font-bold"
-                            data-testid={`btn-lib-buy-${book.id}`}
-                          >{book.requiresPremium ? "Premium" : "Comprar"}</button>
+                          {!book.requiresPremium && book.priceInCents > 0 && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setLibPurchaseBook(book); }}
+                              className="flex-1 py-1 rounded bg-primary text-primary-foreground text-[9px] font-bold"
+                              data-testid={`btn-lib-buy-${book.id}`}
+                            >Comprar</button>
+                          )}
+                          {book.requiresPremium && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setActiveTab("premium" as any); }}
+                              className="flex-1 py-1 rounded bg-amber-500 text-white text-[9px] font-bold"
+                              data-testid={`btn-lib-premium-${book.id}`}
+                            >Premium</button>
+                          )}
                         </div>
                       )}
                       {!isLocked && !hasProgress && !isFree && (
@@ -2973,6 +2983,19 @@ export default function Book() {
           priceLabel={priceLabel}
           onSuccess={handlePurchaseSuccess}
           onClose={() => setShowPurchaseModal(false)}
+        />
+      )}
+
+      {libPurchaseBook && (
+        <BookPurchaseModal
+          priceLabel={libPurchaseBook.priceDisplay}
+          libraryBookId={libPurchaseBook.id}
+          libraryBookTitle={libPurchaseBook.title}
+          onSuccess={() => {
+            setLibPurchaseBook(null);
+            setLibReaderBook({ id: libPurchaseBook.id, title: libPurchaseBook.title, author: libPurchaseBook.author });
+          }}
+          onClose={() => setLibPurchaseBook(null)}
         />
       )}
     </div>

@@ -109,6 +109,13 @@ A mobile-first devotional web app based on the book "365 Encontros com Deus Pai"
 - Products list: `GET /api/stripe/products` returns available plans from DB
 - Webhook: `/api/stripe/webhook` registered before express.json() for raw body parsing
 - DB columns: `stripeCustomerId`, `stripeSubscriptionId` on users
+- **Library Book Purchase flow** (one-time payment):
+  - `library_purchases` table: userId, bookId (FK→library_books), stripePaymentIntentId (unique), amountCents
+  - `POST /api/library/books/:id/create-payment-intent` → creates Stripe PaymentIntent, returns `clientSecret`
+  - `POST /api/library/books/:id/confirm-purchase` → verifies PI status, records purchase in DB
+  - `GET /api/library/books` now includes `isPurchased: boolean` per book (based on session user's purchases)
+  - `BookPurchaseModal` supports `libraryBookId` / `libraryBookTitle` props to route to library purchase flow
+  - After purchase: cache invalidated for `/api/library/books`, reader opens automatically
 
 ## Premium / Freemium Model
 - New users get 14-day free trial (trialEndsAt set on registration)
