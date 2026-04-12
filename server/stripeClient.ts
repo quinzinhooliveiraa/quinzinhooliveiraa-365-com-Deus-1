@@ -10,7 +10,7 @@ function getStripeKey(): string {
 
 export async function getUncachableStripeClient(): Promise<Stripe> {
   const apiKey = getStripeKey();
-  return new Stripe(apiKey, { apiVersion: "2025-04-30.basil" as any });
+  return new Stripe(apiKey, { apiVersion: "2024-06-20" });
 }
 
 export async function getStripeSync(): Promise<StripeSync> {
