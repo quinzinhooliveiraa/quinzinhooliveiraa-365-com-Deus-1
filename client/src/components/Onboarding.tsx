@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { useGeoPrice } from "@/hooks/useGeoPrice";
 import {
   ArrowRight, ArrowLeft, Bell, Check,
   BookOpen, PenLine, Smile,
   BellRing, Crown, Loader2, CheckCircle2, Clock,
   ShieldCheck, Sparkles,
-  Smartphone, Plus, Share
+  Smartphone, Plus, Share, Library, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import bookCover from "@/assets/images/book-cover-oficial.png";
@@ -116,7 +115,6 @@ const INTERESTS = [
 ];
 
 export default function Onboarding({ onComplete }: { onComplete: () => void }) {
-  const { price: geo } = useGeoPrice();
   const savedStep = parseInt(localStorage.getItem("365encontros-onboarding-step") || "0", 10);
   const [stepIndex, setStepIndex] = useState(isNaN(savedStep) ? 0 : Math.min(savedStep, STEP_ORDER.length - 1));
   const [isAnimating, setIsAnimating] = useState(false);
@@ -126,8 +124,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const [pwaAutoTriggered, setPwaAutoTriggered] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"enter-right" | "enter-left" | "exit-left" | "exit-right" | "idle">("idle");
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-
   useEffect(() => {
     requestAnimationFrame(() => setMounted(true));
   }, []);
@@ -161,19 +157,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const currentStep = STEP_ORDER[stepIndex];
 
   useEffect(() => {
-    if (currentStep === "premium") {
-      setPremiumCountdown(5);
-      const interval = setInterval(() => {
-        setPremiumCountdown(prev => {
-          if (prev <= 1) { clearInterval(interval); return 0; }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [currentStep]);
-
-  useEffect(() => {
     if (currentStep === "pwa" && canInstall && !pwaInstalled && !pwaAutoTriggered) {
       setPwaAutoTriggered(true);
       const timer = setTimeout(() => {
@@ -193,8 +176,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  const [checkoutError, setCheckoutError] = useState("");
-  const [premiumCountdown, setPremiumCountdown] = useState(5);
   const [profileAge, setProfileAge] = useState<number | null>(null);
   const [profileInterests, setProfileInterests] = useState<string[]>([]);
 
@@ -218,26 +199,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       });
     } catch {
     }
-  };
-
-  const handleAddCardForBonus = async () => {
-    setCheckoutLoading(true);
-    setCheckoutError("");
-    try {
-      const res = await fetch("/api/stripe/setup-for-bonus", {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setCheckoutError(data.message || "Erro ao iniciar. Tente novamente.");
-      }
-    } catch {
-      setCheckoutError("Erro de conexão. Tente novamente.");
-    }
-    setCheckoutLoading(false);
   };
 
   const slideClass =
@@ -767,49 +728,46 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
               </div>
 
               <div className="space-y-2 stagger-2">
-                <h2 className="text-2xl font-serif text-foreground">Plano Premium</h2>
+                <h2 className="text-2xl font-serif text-foreground">Muito mais te espera</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed px-2">
-                  Desbloqueie toda a experiência de 365 Encontros com Deus Pai
+                  Descobre tudo o que a plataforma tem para te oferecer
                 </p>
               </div>
 
               <div className="w-full max-w-[320px] space-y-3 stagger-3">
-                <div className="bg-card rounded-xl border border-border p-4 space-y-3">
-                  <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Gratuito (sempre)</p>
-                  <div className="space-y-2">
-                    {[
-                      "Check-in diário de humor",
-                      "Diário espiritual com texto",
-                      "Devocional diário do livro",
-                      "Notificações de lembrança"
-                    ].map((item, i) => (
-                      <div key={item} className="flex items-center gap-2 text-left" style={{ animation: `staggerFade 0.3s ease-out ${0.3 + i * 0.08}s both` }}>
-                        <Check size={14} className="text-green-500 shrink-0" />
-                        <span className="text-xs text-foreground">{item}</span>
-                      </div>
-                    ))}
+                <div className="bg-card rounded-xl border border-border p-4 flex items-start gap-3 text-left" style={{ animation: `staggerFade 0.4s ease-out 0.3s both` }}>
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Library size={20} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Biblioteca</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                      Acede a outros livros e devocionais para aprofundar ainda mais a tua caminhada com Deus.
+                    </p>
                   </div>
                 </div>
 
-                <div className="bg-primary/5 rounded-xl border border-primary/20 p-4 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-1">
-                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                      <Crown size={10} /> Premium
-                    </p>
-                    <p className="text-xs font-bold text-foreground">{geo.monthlyFormatted}<span className="text-muted-foreground font-normal">/mês</span></p>
+                <div className="bg-card rounded-xl border border-border p-4 flex items-start gap-3 text-left" style={{ animation: `staggerFade 0.4s ease-out 0.42s both` }}>
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <BookOpen size={20} className="text-primary" />
                   </div>
-                  <div className="space-y-2">
-                    {[
-                      "Tudo do plano gratuito",
-                      "Diário com fotos e desenhos",
-                      "Notificações personalizadas",
-                      "Acesso a todo o conteúdo do livro"
-                    ].map((item, i) => (
-                      <div key={item} className="flex items-center gap-2 text-left" style={{ animation: `staggerFade 0.3s ease-out ${0.4 + i * 0.08}s both` }}>
-                        <Check size={14} className="text-amber-500 shrink-0" />
-                        <span className="text-xs text-foreground">{item}</span>
-                      </div>
-                    ))}
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Devocional Diário</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                      Um encontro diário com o Pai — versículo, reflexão e oração guiada para cada dia do ano.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-xl border border-border p-4 flex items-start gap-3 text-left" style={{ animation: `staggerFade 0.4s ease-out 0.54s both` }}>
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Users size={20} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Comunidade</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                      Conecta-te com outros crentes, partilha reflexões e cresce junto numa comunidade de fé.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -833,31 +791,23 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
           {currentStep === "premium" ? (
             <div className="space-y-3">
-              {checkoutError && (
-                <p className="text-xs text-red-500 text-center" data-testid="text-checkout-error">{checkoutError}</p>
-              )}
               <Button
-                onClick={handleAddCardForBonus}
-                disabled={checkoutLoading}
-                className="w-full h-14 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-base font-semibold shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={() => {
+                  onComplete();
+                  setTimeout(() => { window.location.href = "/premium"; }, 100);
+                }}
+                className="w-full h-14 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-base font-semibold shadow-lg hover:shadow-xl active:scale-95 transition-all"
                 data-testid="button-onboarding-premium"
               >
-                {checkoutLoading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <>
-                    <Sparkles size={18} />
-                    Ganhar 30 dias grátis
-                  </>
-                )}
+                <Crown size={18} />
+                Ver Planos Premium
               </Button>
               <button
                 onClick={onComplete}
-                disabled={premiumCountdown > 0}
-                className="w-full text-sm text-muted-foreground font-medium hover:text-foreground transition-colors py-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full text-sm text-muted-foreground font-medium hover:text-foreground transition-colors py-2"
                 data-testid="button-onboarding-skip-premium"
               >
-                {premiumCountdown > 0 ? `Aguarda ${premiumCountdown}s...` : "Ficar com os 14 dias por agora"}
+                Explorar o app primeiro
               </button>
               <button
                 onClick={back}
