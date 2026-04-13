@@ -1333,10 +1333,10 @@ export default function Admin() {
   const [bookPriceInput, setBookPriceInput] = useState("");
   const [monthlyPriceInput, setMonthlyPriceInput] = useState("");
   const [yearlyPriceInput, setYearlyPriceInput] = useState("");
-  const [newPlanForm, setNewPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "month" | "year" });
+  const [newPlanForm, setNewPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "week" | "month" | "month_3" | "month_6" | "year" | "one_time" });
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [editPlanForm, setEditPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "month" | "year" });
+  const [editPlanForm, setEditPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "week" | "month" | "month_3" | "month_6" | "year" | "one_time" });
 
   const { data: adminSettings = {}, isLoading: settingsLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/admin/settings"],
@@ -3826,11 +3826,15 @@ export default function Admin() {
                     <select
                       className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                       value={newPlanForm.interval}
-                      onChange={e => setNewPlanForm(p => ({ ...p, interval: e.target.value as "month" | "year" }))}
+                      onChange={e => setNewPlanForm(p => ({ ...p, interval: e.target.value as typeof newPlanForm.interval }))}
                       data-testid="select-plan-interval"
                     >
+                      <option value="week">Semanal</option>
                       <option value="month">Mensal</option>
+                      <option value="month_3">Trimestral (3 meses)</option>
+                      <option value="month_6">Semestral (6 meses)</option>
                       <option value="year">Anual</option>
+                      <option value="one_time">Vitalício (pagamento único)</option>
                     </select>
                   </div>
                 </div>
@@ -3863,7 +3867,15 @@ export default function Admin() {
                         <p className="text-sm font-medium truncate">{plan.product_name}</p>
                         <p className="text-xs text-muted-foreground">
                           R$ {((plan.unit_amount ?? 0) / 100).toFixed(2).replace(".", ",")}
-                          {plan.recurring ? ` / ${plan.recurring.interval === "month" ? "mês" : "ano"}` : ""}
+                          {plan.recurring ? (() => {
+                            const { interval, interval_count } = plan.recurring as { interval: string; interval_count?: number };
+                            if (interval === "week") return " / semana";
+                            if (interval === "month" && interval_count === 3) return " / trimestre";
+                            if (interval === "month" && interval_count === 6) return " / semestre";
+                            if (interval === "month") return " / mês";
+                            if (interval === "year") return " / ano";
+                            return "";
+                          })() : " · Vitalício"}
                           {plan.product_description ? ` · ${plan.product_description}` : ""}
                         </p>
                         <p className="text-[10px] text-muted-foreground/60 font-mono truncate">{plan.price_id}</p>
@@ -3875,11 +3887,21 @@ export default function Admin() {
                               setEditingPlanId(null);
                             } else {
                               setEditingPlanId(plan.price_id);
+                              const rec = plan.recurring as { interval: string; interval_count?: number } | null;
+                              const intervalVal = (() => {
+                                if (!rec) return "one_time";
+                                if (rec.interval === "week") return "week";
+                                if (rec.interval === "month" && rec.interval_count === 3) return "month_3";
+                                if (rec.interval === "month" && rec.interval_count === 6) return "month_6";
+                                if (rec.interval === "month") return "month";
+                                if (rec.interval === "year") return "year";
+                                return "month";
+                              })() as typeof editPlanForm.interval;
                               setEditPlanForm({
                                 name: plan.product_name,
                                 description: plan.product_description ?? "",
                                 amount: ((plan.unit_amount ?? 0) / 100).toFixed(2),
-                                interval: (plan.recurring?.interval as "month" | "year") ?? "month",
+                                interval: intervalVal,
                               });
                             }
                           }}
@@ -3945,11 +3967,15 @@ export default function Admin() {
                             <select
                               className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                               value={editPlanForm.interval}
-                              onChange={e => setEditPlanForm(p => ({ ...p, interval: e.target.value as "month" | "year" }))}
+                              onChange={e => setEditPlanForm(p => ({ ...p, interval: e.target.value as typeof editPlanForm.interval }))}
                               data-testid={`select-edit-plan-interval-${plan.price_id}`}
                             >
+                              <option value="week">Semanal</option>
                               <option value="month">Mensal</option>
+                              <option value="month_3">Trimestral (3 meses)</option>
+                              <option value="month_6">Semestral (6 meses)</option>
                               <option value="year">Anual</option>
+                              <option value="one_time">Vitalício (pagamento único)</option>
                             </select>
                           </div>
                         </div>

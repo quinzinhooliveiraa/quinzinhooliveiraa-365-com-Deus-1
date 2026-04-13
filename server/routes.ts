@@ -3132,6 +3132,16 @@ export async function registerRoutes(
     }
   });
 
+  function parseIntervalForStripe(interval: string): { recurring?: { interval: "week" | "month" | "year"; interval_count?: number } } {
+    if (interval === "week") return { recurring: { interval: "week" } };
+    if (interval === "month") return { recurring: { interval: "month" } };
+    if (interval === "month_3") return { recurring: { interval: "month", interval_count: 3 } };
+    if (interval === "month_6") return { recurring: { interval: "month", interval_count: 6 } };
+    if (interval === "year") return { recurring: { interval: "year" } };
+    if (interval === "one_time") return {};
+    return { recurring: { interval: "month" } };
+  }
+
   app.post("/api/admin/stripe/plans", requireAdmin, async (req: Request, res: Response) => {
     try {
       const stripe = await getUncachableStripeClient();
@@ -3143,11 +3153,12 @@ export async function registerRoutes(
         name,
         description: description || undefined,
       });
+      const { recurring } = parseIntervalForStripe(interval);
       const price = await stripe.prices.create({
         product: product.id,
         unit_amount: Math.round(Number(amount) * 100),
         currency: currency || "brl",
-        recurring: { interval },
+        ...(recurring ? { recurring } : {}),
       });
       res.json({ product_id: product.id, price_id: price.id, success: true });
     } catch (err: any) {
@@ -3171,11 +3182,12 @@ export async function registerRoutes(
         name,
         description: description || "",
       });
+      const { recurring } = parseIntervalForStripe(interval);
       const newPrice = await stripe.prices.create({
         product: productId,
         unit_amount: Math.round(Number(amount) * 100),
         currency: currency || "brl",
-        recurring: { interval },
+        ...(recurring ? { recurring } : {}),
       });
       res.json({ product_id: productId, price_id: newPrice.id, success: true });
     } catch (err: any) {
