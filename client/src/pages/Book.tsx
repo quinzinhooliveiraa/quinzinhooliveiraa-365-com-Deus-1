@@ -2370,6 +2370,51 @@ function LibraryReader({ bookId, bookTitle, bookAuthor, onClose }: {
 }
 
 /* ─────────────────────────────────────────────────────────────────
+   TIKTOK PROFILE CARD
+───────────────────────────────────────────────────────────────── */
+function TikTokProfileCard() {
+  const { data, isLoading } = useQuery<{ name: string; avatar: string; description: string; handle: string }>({
+    queryKey: ["/api/tiktok-profile"],
+    staleTime: 1000 * 60 * 30,
+  });
+
+  const handle = "365encontroscomdeuspai_";
+  const profileUrl = `https://www.tiktok.com/@${handle}`;
+
+  return (
+    <div className="bg-card rounded-3xl p-6 border border-border flex flex-col items-center text-center space-y-4">
+      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-border shadow-md bg-muted flex items-center justify-center">
+        {isLoading ? (
+          <div className="w-full h-full animate-pulse bg-muted-foreground/20" />
+        ) : data?.avatar ? (
+          <img src={`/api/proxy-image?url=${encodeURIComponent(data.avatar)}`} alt={data.name} className="w-full h-full object-cover" />
+        ) : (
+          <SiTiktok size={28} className="text-foreground" />
+        )}
+      </div>
+      <div>
+        <h3 className="font-serif text-base text-foreground">
+          {isLoading ? <span className="inline-block w-32 h-4 rounded bg-muted-foreground/20 animate-pulse" /> : (data?.name || "365 Encontros com Deus Pai")}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          {isLoading
+            ? <span className="inline-block w-48 h-3 rounded bg-muted-foreground/20 animate-pulse mt-1" />
+            : (data?.description || "Conta oficial no TikTok")}
+        </p>
+      </div>
+      <button
+        onClick={() => window.open(profileUrl, "_blank")}
+        className="w-full py-2.5 text-white rounded-full text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+        style={{ background: "#010101" }}
+        data-testid="btn-author-tiktok"
+      >
+        <SiTiktok size={16} /> @{handle}
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────────── */
 export default function Book() {
@@ -2653,22 +2698,8 @@ export default function Book() {
               </div>
             </div>
 
-            {/* Author */}
-            <div className="bg-card rounded-3xl p-6 border border-border flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 overflow-hidden border-2 border-background shadow-md flex items-center justify-center">
-                <span className="font-serif text-2xl font-bold text-primary">J</span>
-              </div>
-              <div>
-                <h3 className="font-serif text-base text-foreground">Jun Date</h3>
-                <p className="text-xs text-muted-foreground mt-1">Autor de "365 Encontros com Deus Pai" — pastor e escritor cristão comprometido com a renovação espiritual diária.</p>
-              </div>
-              <button onClick={() => window.open("https://www.tiktok.com/@365encontroscomdeuspai_","_blank")}
-                className="w-full py-2.5 text-white rounded-full text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-                style={{ background: "#010101" }}
-                data-testid="btn-author-tiktok">
-                <SiTiktok size={16} /> @365encontroscomdeuspai_
-              </button>
-            </div>
+            {/* TikTok Profile */}
+            <TikTokProfileCard />
           </div>
         )}
 

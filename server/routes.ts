@@ -5352,6 +5352,74 @@ REGRAS:
     }
   });
 
+  // Image proxy for TikTok avatars (blocked when loaded directly)
+  app.get("/api/proxy-image", async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      if (!url || !url.startsWith("https://")) return res.status(400).send("Invalid URL");
+      const imgRes = await fetch(url, {
+        headers: {
+          "Referer": "https://www.tiktok.com/",
+          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const buffer = await imgRes.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (err: any) {
+      res.status(500).send("Error");
+    }
+  });
+
+  // TikTok profile info endpoint
+  app.get("/api/tiktok-profile", async (req, res) => {
+    try {
+      const handle = "365encontroscomdeuspai_";
+      const url = `https://www.tiktok.com/@${handle}`;
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+          "Accept": "text/html",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      const html = await response.text();
+
+      const getMetaContent = (property: string): string => {
+        const ogMatch = html.match(new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, "i"));
+        if (ogMatch) return ogMatch[1];
+        const nameMatch = html.match(new RegExp(`<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']+)["']`, "i"));
+        if (nameMatch) return nameMatch[1];
+        const contentFirst = html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, "i"));
+        if (contentFirst) return contentFirst[1];
+        return "";
+      };
+
+      const decodeEntities = (s: string) =>
+        s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
+      const avatarRaw = getMetaContent("og:image") || getMetaContent("twitter:image") || "";
+      const avatar = decodeEntities(avatarRaw);
+
+      const titleRaw = getMetaContent("og:title") || getMetaContent("twitter:title") || handle;
+      // TikTok title format: "DisplayName (@handle) no TikTok"
+      const nameMatch = titleRaw.match(/^(.+?)\s*\(@/);
+      const name = nameMatch ? nameMatch[1].trim() : titleRaw.replace(/\s*[\|].*$/, "").trim() || handle;
+
+      const descRaw = getMetaContent("og:description") || getMetaContent("twitter:description") || "";
+      // Extract just the bio — text after the followers/likes count
+      const bioMatch = descRaw.match(/seguidores\.\s*(.+)/i) || descRaw.match(/followers\.\s*(.+)/i);
+      const description = bioMatch ? decodeEntities(bioMatch[1].split(".")[0].trim()) : decodeEntities(descRaw.split(".")[0].trim());
+
+      res.json({ name, avatar, description, handle });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
 
