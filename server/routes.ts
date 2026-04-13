@@ -23,6 +23,7 @@ import {
   insertMoodCheckinSchema,
   type User,
   bookChapters,
+  chatChannels,
   insertChatChannelSchema,
   insertChatMessageSchema,
   insertDmMessageSchema,
@@ -5233,17 +5234,39 @@ REGRAS:
   });
 
   app.get("/api/chat/channels/:id/messages", requireAuth, requirePremium, async (req, res) => {
-    const limit = req.query.limit ? Number(req.query.limit) : 50;
-    const before = req.query.before ? new Date(req.query.before as string) : undefined;
-    const messages = await storage.getChatMessages(Number(req.params.id), limit, before);
-    res.json(messages);
+    try {
+      const channelId = Number(req.params.id);
+      const [channel] = await db.select().from(chatChannels).where(drizzleEq(chatChannels.id, channelId));
+      if (channel?.isPremium) {
+        const user = await storage.getUser(req.session.userId!);
+        const now = new Date();
+        const hasPaidAccess = user?.role === "admin" || user?.isPremium ||
+          (user?.premiumUntil && new Date(user.premiumUntil) > now);
+        if (!hasPaidAccess) return res.status(403).json({ message: "Canal exclusivo para assinantes" });
+      }
+      const limit = req.query.limit ? Number(req.query.limit) : 50;
+      const before = req.query.before ? new Date(req.query.before as string) : undefined;
+      const messages = await storage.getChatMessages(channelId, limit, before);
+      res.json(messages);
+    } catch {
+      res.status(500).json({ message: "Erro" });
+    }
   });
 
   app.post("/api/chat/channels/:id/messages", requireAuth, requirePremium, async (req, res) => {
     try {
+      const channelId = Number(req.params.id);
+      const [channel] = await db.select().from(chatChannels).where(drizzleEq(chatChannels.id, channelId));
+      if (channel?.isPremium) {
+        const user = await storage.getUser(req.session.userId!);
+        const now = new Date();
+        const hasPaidAccess = user?.role === "admin" || user?.isPremium ||
+          (user?.premiumUntil && new Date(user.premiumUntil) > now);
+        if (!hasPaidAccess) return res.status(403).json({ message: "Canal exclusivo para assinantes" });
+      }
       const data = insertChatMessageSchema.parse({
         ...req.body,
-        channelId: Number(req.params.id),
+        channelId,
         userId: req.session.userId,
       });
       const message = await storage.createChatMessage(data);

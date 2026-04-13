@@ -2184,6 +2184,7 @@ export default function Community() {
 
   const isAdmin = user?.role === "admin";
   const isPremium = user?.hasPremium || isAdmin;
+  const isPaidOrGranted = isAdmin || ["paid", "granted"].includes((user as any)?.premiumReason ?? "");
 
   const { data: myAdminChannelIds = [] } = useQuery<number[]>({
     queryKey: ["/api/chat/my-admin-channels"],
@@ -2428,10 +2429,32 @@ export default function Community() {
             <span>Canais</span>
           </button>
         )}
-        {activeView?.type === "channel" ? (
-          <ChannelChat channel={{ channelId: activeView.channelId, channelName: activeView.channelName }}
-            currentUserId={user!.id} isAdmin={isAdmin} wsRef={wsRef} onBack={goBack} onStartDm={startDm} />
-        ) : activeView?.type === "dm" ? (
+        {activeView?.type === "channel" ? (() => {
+          const selectedChannel = channels.find(c => c.id === activeView.channelId);
+          const channelRequiresPaid = selectedChannel?.isPremium && !isPaidOrGranted;
+          if (channelRequiresPaid) {
+            return (
+              <div className="flex flex-col items-center justify-center h-full overflow-y-auto">
+                <PremiumPaywall
+                  icon={<Crown className="w-7 h-7 text-yellow-500" />}
+                  title="Canal Premium"
+                  description={`O canal #${activeView.channelName} é exclusivo para membros com assinatura ativa. Subscreve para participar nesta comunidade de fé.`}
+                  features={[
+                    "Acesso a todos os canais premium",
+                    "Mensagens privadas ilimitadas",
+                    "Lives e orações em direto",
+                    "Comunidade de crentes dedicados",
+                  ]}
+                  className="py-8"
+                />
+              </div>
+            );
+          }
+          return (
+            <ChannelChat channel={{ channelId: activeView.channelId, channelName: activeView.channelName }}
+              currentUserId={user!.id} isAdmin={isAdmin} wsRef={wsRef} onBack={goBack} onStartDm={startDm} />
+          );
+        })() : activeView?.type === "dm" ? (
           <DmChat conversationId={activeView.conversationId} otherUserName={activeView.otherUserName}
             currentUserId={user!.id} isAdmin={isAdmin} wsRef={wsRef} onBack={goBack} />
         ) : (
