@@ -5132,12 +5132,12 @@ REGRAS:
 
   // ── Chat Channels ──────────────────────────────────────────────────────────
 
-  app.get("/api/chat/channels", requireAuth, async (_req, res) => {
+  app.get("/api/chat/channels", requireAuth, requirePremium, async (_req, res) => {
     const channels = await storage.getChatChannels();
     res.json(channels);
   });
 
-  app.get("/api/chat/my-admin-channels", requireAuth, async (req, res) => {
+  app.get("/api/chat/my-admin-channels", requireAuth, requirePremium, async (req, res) => {
     const userId = req.session.userId!;
     const channels = await storage.getChatChannels();
     const adminChannelIds: number[] = [];
@@ -5209,14 +5209,14 @@ REGRAS:
     res.sendStatus(204);
   });
 
-  app.get("/api/chat/channels/:id/messages", requireAuth, async (req, res) => {
+  app.get("/api/chat/channels/:id/messages", requireAuth, requirePremium, async (req, res) => {
     const limit = req.query.limit ? Number(req.query.limit) : 50;
     const before = req.query.before ? new Date(req.query.before as string) : undefined;
     const messages = await storage.getChatMessages(Number(req.params.id), limit, before);
     res.json(messages);
   });
 
-  app.post("/api/chat/channels/:id/messages", requireAuth, async (req, res) => {
+  app.post("/api/chat/channels/:id/messages", requireAuth, requirePremium, async (req, res) => {
     try {
       const data = insertChatMessageSchema.parse({
         ...req.body,
