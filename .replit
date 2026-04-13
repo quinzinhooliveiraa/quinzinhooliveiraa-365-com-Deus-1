@@ -57,3 +57,4 @@ expertMode = true
 [userenv.shared]
 VAPID_SUBJECT = "mailto:quinzinhooliveiraa@gmail.com"
 VAPID_PUBLIC_KEY = "BKGBGM8PJTV0d5EIrsjqMww6m5LRYmcjgGzKz9hQOgfKmdlH1s4pyGXuQmlc32knvx1f0FoxidZ39eilGpz7RyY"
+ENCRYPTION_KEY = "19d358f96fc3940603c4a0b777a23d0dcac7f3bdbfb26a0415732f7c5f17b50a"

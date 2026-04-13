@@ -5079,7 +5079,7 @@ REGRAS:
     }).catch(() => res.status(500).json({ message: "Erro interno" }));
   }
 
-  app.get("/api/community/posts", requireAuth, async (req, res) => {
+  app.get("/api/community/posts", requireAuth, requirePremium, async (req, res) => {
     try {
       const page = parseInt(String(req.query.page || "1"));
       const limit = 20;
@@ -5103,7 +5103,7 @@ REGRAS:
     }
   });
 
-  app.delete("/api/community/posts/:id", requireAuth, async (req, res) => {
+  app.delete("/api/community/posts/:id", requireAuth, requirePremium, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       const isAdmin = user?.role === "admin";
@@ -5114,7 +5114,7 @@ REGRAS:
     }
   });
 
-  app.post("/api/community/posts/:id/like", requireAuth, async (req, res) => {
+  app.post("/api/community/posts/:id/like", requireAuth, requirePremium, async (req, res) => {
     try {
       const result = await storage.toggleCommunityLike(parseInt(req.params.id), req.session.userId!);
       res.json(result);
@@ -5123,7 +5123,7 @@ REGRAS:
     }
   });
 
-  app.get("/api/community/posts/:id/comments", requireAuth, async (req, res) => {
+  app.get("/api/community/posts/:id/comments", requireAuth, requirePremium, async (req, res) => {
     try {
       const comments = await storage.getCommunityComments(parseInt(req.params.id));
       res.json(comments);
@@ -5143,7 +5143,7 @@ REGRAS:
     }
   });
 
-  app.delete("/api/community/comments/:id", requireAuth, async (req, res) => {
+  app.delete("/api/community/comments/:id", requireAuth, requirePremium, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       const isAdmin = user?.role === "admin";
@@ -5331,12 +5331,12 @@ REGRAS:
 
   // ── Follow System ──────────────────────────────────────────────────────────
 
-  app.post("/api/community/follow/:userId", requireAuth, async (req, res) => {
+  app.post("/api/community/follow/:userId", requireAuth, requirePremium, async (req, res) => {
     await storage.followUser(req.session.userId!, req.params.userId);
     res.sendStatus(204);
   });
 
-  app.delete("/api/community/follow/:userId", requireAuth, async (req, res) => {
+  app.delete("/api/community/follow/:userId", requireAuth, requirePremium, async (req, res) => {
     await storage.unfollowUser(req.session.userId!, req.params.userId);
     res.sendStatus(204);
   });
@@ -5360,7 +5360,9 @@ REGRAS:
 
   app.post("/api/chat/lives", requireAuth, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
-    if (!user || (user.role !== "admin" && !user.hasPremium)) {
+    if (!user) return res.status(401).json({ message: "Não autenticado" });
+    const premiumStatus = getUserPremiumStatus(user);
+    if (!premiumStatus.hasPremium) {
       return res.status(403).json({ message: "Apenas utilizadores Premium podem iniciar lives" });
     }
     const channelId = req.body.channelId ? Number(req.body.channelId) : null;
