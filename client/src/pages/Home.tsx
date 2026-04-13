@@ -2,8 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  PenLine, ChevronRight, Quote, CheckCircle2, BarChart2,
+  PenLine, ChevronRight, Quote, CheckCircle2, BarChart2, BookOpen,
 } from "lucide-react";
+import PremiumPaywall from "@/components/PremiumPaywall";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreateEntry } from "@/hooks/useJournal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -264,7 +265,8 @@ export default function Home() {
 
   const purchased = purchaseStatus?.purchased ?? false;
   const isAdmin = user?.role === "admin";
-  const hasAccess = purchased || isAdmin;
+  const hasPremium = (user as any)?.hasPremium ?? false;
+  const hasAccess = purchased || isAdmin || hasPremium;
 
   const { data: todayData, isLoading: isLoadingChapter } = useQuery<{ chapter: DailyChapter | null; dayOfYear: number }>({
     queryKey: ["/api/book/today"],
@@ -315,6 +317,27 @@ export default function Home() {
           <span className="text-primary font-semibold">✦</span> Encontro #{dayOfYear} com Deus Pai
         </p>
       </div>
+
+      {/* Devotional Paywall — shown when no access */}
+      {!hasAccess && (
+        <div className="bg-card/80 border border-border/60 rounded-xl overflow-hidden shadow-sm" data-testid="card-devotional-paywall">
+          <div className="bg-primary/8 border-b border-border/50 px-5 py-3 flex items-center gap-2">
+            <span className="text-primary text-sm shrink-0">✦</span>
+            <span className="text-xs font-sans font-semibold text-primary uppercase tracking-[0.15em]">Devocional de Hoje</span>
+          </div>
+          <PremiumPaywall
+            icon={<BookOpen className="w-7 h-7 text-primary" />}
+            title="Devocional Diário"
+            description="Acede ao encontro diário com o Pai — versículo, reflexão e oração guiada para cada dia do ano."
+            features={[
+              "365 encontros diários com Deus Pai",
+              "Versículo, reflexão e oração guiada",
+              "Biblioteca com mais livros espirituais",
+              "Comunidade de fé",
+            ]}
+          />
+        </div>
+      )}
 
       {/* Devotional — only for users with access, always first */}
       {hasAccess && (

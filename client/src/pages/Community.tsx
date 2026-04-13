@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import PremiumPaywall from "@/components/PremiumPaywall";
 import {
   Hash, Lock, Mic, Send, Plus, Users, MessageCircle, X,
   Play, Pause, Square, Image as ImageIcon, Radio,
@@ -2142,33 +2143,20 @@ function GoLiveDialog({ open, onClose, onLive, channels }: {
 
 function Paywall() {
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-6">
-      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-        <Users className="w-8 h-8 text-primary" />
-      </div>
-      <div className="space-y-2">
-        <h2 className="text-2xl font-bold font-serif">Comunidade Premium</h2>
-        <p className="text-muted-foreground max-w-sm">
-          Junta-te à comunidade de crentes e partilha a tua jornada de fé com outros leitores do livro.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 text-sm text-left w-full max-w-xs">
-        {[
-          { icon: <Hash className="w-4 h-4 text-primary" />, text: "Canais temáticos de oração e partilha" },
-          { icon: <MessageCircle className="w-4 h-4 text-primary" />, text: "Mensagens privadas com outros membros" },
-          { icon: <Mic className="w-4 h-4 text-primary" />, text: "Envio de fotos e mensagens de voz" },
-          { icon: <UserPlus className="w-4 h-4 text-primary" />, text: "Sistema de seguidores e rede de fé" },
-          { icon: <Radio className="w-4 h-4 text-primary" />, text: "Lives e orações em direto" },
-        ].map((f, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-            {f.icon}
-            <span className="text-muted-foreground">{f.text}</span>
-          </div>
-        ))}
-      </div>
-      <Button size="default" className="w-full max-w-xs" data-testid="button-upgrade-community">
-        <Crown className="w-4 h-4 mr-2" /> Activar Premium
-      </Button>
+    <div className="flex flex-col items-center justify-center h-full overflow-y-auto">
+      <PremiumPaywall
+        icon={<Users className="w-7 h-7 text-primary" />}
+        title="Comunidade Premium"
+        description="Junta-te à comunidade de crentes e partilha a tua jornada de fé com outros leitores do livro."
+        features={[
+          "Canais temáticos de oração e partilha",
+          "Mensagens privadas com outros membros",
+          "Envio de fotos e mensagens de voz",
+          "Sistema de seguidores e rede de fé",
+          "Lives e orações em direto",
+        ]}
+        className="py-8"
+      />
     </div>
   );
 }

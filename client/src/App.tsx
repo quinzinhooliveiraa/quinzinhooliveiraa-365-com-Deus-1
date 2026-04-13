@@ -12,6 +12,7 @@ import Auth from "@/pages/Auth";
 import Onboarding from "@/components/Onboarding";
 import { refreshPushSubscription } from "@/utils/pushNotifications";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import WelcomeTrialModal from "@/components/WelcomeTrialModal";
 
 import Home from "@/pages/Home";
 import Journal from "@/pages/Journal";
@@ -30,6 +31,7 @@ function AuthGate() {
   const needsOnboarding = user && localStorage.getItem("365encontros-needs-onboarding") === "true";
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [bonusBanner, setBonusBanner] = useState<"success" | "cancel" | "checkout-success" | null>(null);
   const [pwaReturnBanner, setPwaReturnBanner] = useState(false);
 
@@ -115,6 +117,18 @@ function AuthGate() {
       refreshPushSubscription();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user && user.trialEndsAt && !user.trialBonusClaimed && user.role !== "admin") {
+      const trialActive = new Date(user.trialEndsAt) > new Date();
+      if (!trialActive) return;
+      const seenKey = `casa-welcome-seen-${user.id}`;
+      if (!localStorage.getItem(seenKey)) {
+        const timer = setTimeout(() => setShowWelcomeModal(true), 1200);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user?.id, user?.trialEndsAt, user?.trialBonusClaimed]);
 
 
   useEffect(() => {
@@ -206,6 +220,14 @@ function AuthGate() {
             <p className="text-xs text-muted-foreground">Volta à app no ecrã inicial do iPhone.</p>
           </div>
         </div>
+      )}
+      {showWelcomeModal && user && (
+        <WelcomeTrialModal
+          userId={user.id}
+          trialEndsAt={user.trialEndsAt}
+          trialBonusClaimed={user.trialBonusClaimed ?? false}
+          onClose={() => setShowWelcomeModal(false)}
+        />
       )}
     </MobileLayout>
   );

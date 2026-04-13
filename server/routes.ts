@@ -1198,6 +1198,29 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/activate-trial", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Não autenticado" });
+      if (user.isPremium) return res.status(400).json({ message: "Já tens premium ativo" });
+      if (user.trialEndsAt && new Date(user.trialEndsAt) > new Date()) {
+        return res.status(400).json({ message: "Já tens um trial ativo" });
+      }
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      const updated = await storage.updateUser(user.id, { trialEndsAt });
+      if (!updated) return res.status(500).json({ message: "Erro ao ativar trial" });
+      const premiumStatus = getUserPremiumStatus(updated);
+      res.json({
+        message: "Trial de 14 dias ativado!",
+        trialEndsAt: updated.trialEndsAt,
+        hasPremium: premiumStatus.hasPremium,
+        premiumReason: premiumStatus.reason,
+      });
+    } catch {
+      res.status(500).json({ message: "Erro ao ativar trial" });
+    }
+  });
+
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy(() => {
       res.json({ message: "Logout realizado" });
