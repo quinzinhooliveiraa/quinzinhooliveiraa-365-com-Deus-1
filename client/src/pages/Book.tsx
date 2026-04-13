@@ -2,9 +2,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Bookmark, LockKeyhole, BookOpen, X, ChevronLeft, ChevronRight,
-  ShoppingBag, ExternalLink, Instagram, CheckCircle2, List, BookMarked, AlignLeft,
+  ShoppingBag, ExternalLink, CheckCircle2, List, BookMarked, AlignLeft,
   Highlighter, Trash2, Star, ImageDown, Search, Lightbulb, Library, Crown, Play
 } from "lucide-react";
+import { SiTiktok } from "react-icons/si";
 import bookCover from "@/assets/images/book-cover-oficial.png";
 import authorImg from "../assets/author.webp";
 import BookPurchaseModal from "@/components/BookPurchaseModal";
@@ -2661,11 +2662,11 @@ export default function Book() {
                 <h3 className="font-serif text-base text-foreground">Jun Date</h3>
                 <p className="text-xs text-muted-foreground mt-1">Autor de "365 Encontros com Deus Pai" — pastor e escritor cristão comprometido com a renovação espiritual diária.</p>
               </div>
-              <button onClick={() => window.open("https://www.instagram.com/jundate/","_blank")}
+              <button onClick={() => window.open("https://www.tiktok.com/@365encontroscomdeuspai_","_blank")}
                 className="w-full py-2.5 text-white rounded-full text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-                style={{ background: "linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7)" }}
-                data-testid="btn-author-instagram">
-                <Instagram size={16} /> @jundate
+                style={{ background: "#010101" }}
+                data-testid="btn-author-tiktok">
+                <SiTiktok size={16} /> @365encontroscomdeuspai_
               </button>
             </div>
           </div>
