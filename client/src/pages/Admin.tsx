@@ -1442,7 +1442,16 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/stripe/products"] });
       toast({ title: "Plano arquivado." });
     },
-    onError: () => toast({ title: "Erro ao arquivar plano", variant: "destructive" }),
+    onError: (err: any) => {
+      let msg = "Erro ao arquivar plano";
+      try {
+        const raw = err?.message || "";
+        const jsonPart = raw.substring(raw.indexOf("{"));
+        const parsed = JSON.parse(jsonPart);
+        if (parsed?.message) msg = parsed.message;
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
+    },
   });
 
   const editPlanMutation = useMutation({

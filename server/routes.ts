@@ -3233,11 +3233,30 @@ export async function registerRoutes(
     try {
       const stripe = await getUncachableStripeClient();
       const { priceId } = req.params;
+      // First retrieve the price to check if it's a valid price ID
+      const price = await stripe.prices.retrieve(priceId);
+      if (!price) {
+        return res.status(404).json({ message: "Plano não encontrado no Stripe" });
+      }
+      if (!price.active) {
+        return res.status(400).json({ message: "Este plano já está arquivado" });
+      }
+      // Archive the price (set active: false)
       await stripe.prices.update(priceId, { active: false });
+      // Also archive the product if no other active prices exist
+      try {
+        const productId = typeof price.product === "string" ? price.product : price.product.id;
+        const otherPrices = await stripe.prices.list({ product: productId, active: true, limit: 2 });
+        if (otherPrices.data.length === 0) {
+          await stripe.products.update(productId, { active: false });
+        }
+      } catch (_) {}
+      console.log(`[admin] Archived price ${priceId}`);
       res.json({ success: true });
     } catch (err: any) {
-      console.error("[admin/stripe/plans/delete] Error:", err?.message);
-      res.status(500).json({ message: err?.message || "Erro ao arquivar plano" });
+      console.error("[admin/stripe/plans/delete] Error:", err?.message, err?.code, err?.type);
+      const msg = err?.raw?.message || err?.message || "Erro ao arquivar plano";
+      res.status(500).json({ message: msg });
     }
   });
 
