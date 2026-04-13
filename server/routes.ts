@@ -876,13 +876,18 @@ export async function registerRoutes(
   const geoCache = new Map<string, { data: object; ts: number }>();
 
   app.get("/api/geo-pricing", async (req: Request, res: Response) => {
-    const BASE_MONTHLY = 9.9;
-    const BASE_YEARLY = 79.9;
+    const monthlyStr = await storage.getSetting("monthly_price_brl");
+    const yearlyStr = await storage.getSetting("yearly_price_brl");
+    const BASE_MONTHLY = monthlyStr ? parseFloat(monthlyStr) : 9.9;
+    const BASE_YEARLY = yearlyStr ? parseFloat(yearlyStr) : 79.9;
+    const yearlyMonthlyBase = Math.round((BASE_YEARLY / 12) * 100) / 100;
     const defaultResp = {
       currency: "BRL", symbol: "R$",
-      monthly: BASE_MONTHLY, yearly: BASE_YEARLY, yearlyMonthly: 6.66,
-      monthlyFormatted: "R$9,90", yearlyFormatted: "R$79,90",
-      yearlyMonthlyFormatted: "R$6,66", countryCode: "BR",
+      monthly: BASE_MONTHLY, yearly: BASE_YEARLY, yearlyMonthly: yearlyMonthlyBase,
+      monthlyFormatted: `R$${BASE_MONTHLY.toFixed(2).replace(".", ",")}`,
+      yearlyFormatted: `R$${BASE_YEARLY.toFixed(2).replace(".", ",")}`,
+      yearlyMonthlyFormatted: `R$${yearlyMonthlyBase.toFixed(2).replace(".", ",")}`,
+      countryCode: "BR",
     };
     try {
       const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
