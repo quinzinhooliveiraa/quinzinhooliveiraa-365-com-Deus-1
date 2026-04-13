@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Crown, Check, Sparkles, PenLine, Map, Gift, Ticket, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Crown, Check, Sparkles, PenLine, Map, Gift, Ticket, ChevronDown, ChevronUp, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 import CardSetupModal from "@/components/CardSetupModal";
 import SubscriptionCheckoutModal from "@/components/SubscriptionCheckoutModal";
@@ -25,6 +25,24 @@ export default function Premium() {
   const [couponOpen, setCouponOpen] = useState(false);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMsg, setCouponMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        alert(data.message || "Erro ao abrir o portal. Tenta novamente.");
+      }
+    } catch {
+      alert("Erro ao abrir o portal. Tenta novamente.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -182,9 +200,18 @@ export default function Premium() {
         )}
 
         {user?.hasPremium && user?.premiumReason !== "trial" && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6 text-center" data-testid="premium-active-banner">
-            <p className="text-green-600 dark:text-green-400 font-semibold">🌟 Já tens o Premium ativo!</p>
-            <p className="text-sm text-muted-foreground mt-1">Obrigado pelo apoio a 365 Encontros com Deus Pai.</p>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6 text-center space-y-3" data-testid="premium-active-banner">
+            <p className="text-green-600 dark:text-green-400 font-semibold">Já tens o Premium ativo!</p>
+            <p className="text-sm text-muted-foreground">Obrigado pelo apoio a 365 Encontros com Deus Pai.</p>
+            <button
+              onClick={openBillingPortal}
+              disabled={portalLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-border bg-card text-sm font-medium text-muted-foreground hover-elevate transition-colors disabled:opacity-50"
+              data-testid="btn-manage-subscription"
+            >
+              <Settings size={15} />
+              {portalLoading ? "A abrir..." : "Gerir ou cancelar assinatura"}
+            </button>
           </div>
         )}
 
