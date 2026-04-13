@@ -2442,12 +2442,18 @@ export async function registerRoutes(
 
   app.get("/api/library/books/:id/pdf", requireAuth, async (req: Request, res: Response) => {
     try {
-      const book = await storage.getLibraryBook(Number(req.params.id));
+      const bookId = Number(req.params.id);
+      const book = await storage.getLibraryBook(bookId);
       if (!book || !book.isPublished) return res.status(404).json({ error: "Não encontrado" });
-      if (book.requiresPremium) {
-        const user = req.user as any;
-        if (!user?.hasPremium && user?.role !== "admin") {
-          return res.status(403).json({ error: "Requer premium" });
+      const user = req.user as any;
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        const libraryPurchase = await storage.getLibraryPurchase(user.id, bookId);
+        const hasBoughtBook = !!libraryPurchase;
+        const hasPremium = user?.hasPremium ?? false;
+        const hasFullAccess = hasBoughtBook || (hasPremium && book.requiresPremium);
+        if (!hasFullAccess) {
+          return res.status(403).json({ error: book.requiresPremium ? "Requer premium" : "Compra necessária" });
         }
       }
       if (!book.pdfData) return res.status(404).json({ error: "PDF não disponível" });
@@ -2472,25 +2478,42 @@ export async function registerRoutes(
 
   app.get("/api/library/books/:id/pages", requireAuth, async (req: Request, res: Response) => {
     try {
-      const book = await storage.getLibraryBook(Number(req.params.id));
+      const bookId = Number(req.params.id);
+      const book = await storage.getLibraryBook(bookId);
       if (!book || !book.isPublished) return res.status(404).json({ error: "Não encontrado" });
       const user = req.user as any;
-      const isPrivileged = user?.hasPremium || user?.role === "admin";
-      const pages = await storage.getLibraryPages(Number(req.params.id));
-      if (book.requiresPremium && !isPrivileged) {
-        const specificFreeNums: number[] = Array.isArray(book.freePageNumbers) && book.freePageNumbers.length > 0
-          ? book.freePageNumbers
-          : [];
-        const freeCount = book.freePages ?? 0;
-        if (specificFreeNums.length === 0 && freeCount <= 0) {
-          return res.status(403).json({ error: "Requer premium" });
-        }
-        const freePages = specificFreeNums.length > 0
-          ? pages.filter(p => specificFreeNums.includes(p.pageNumber))
-          : pages.slice(0, freeCount);
-        return res.json({ pages: freePages, freePageNumbers: specificFreeNums, totalPages: pages.length, locked: true });
+      const isAdmin = user?.role === "admin";
+      const hasPremium = user?.hasPremium ?? false;
+      const pages = await storage.getLibraryPages(bookId);
+
+      // Admins always get full access
+      if (isAdmin) {
+        return res.json({ pages, freePageNumbers: book.freePageNumbers ?? [], totalPages: pages.length, locked: false });
       }
-      res.json({ pages, freePageNumbers: book.freePageNumbers ?? [], totalPages: pages.length, locked: false });
+
+      // Check if user has individually purchased this book
+      const libraryPurchase = await storage.getLibraryPurchase(user.id, bookId);
+      const hasBoughtBook = !!libraryPurchase;
+
+      // Full access: individually purchased OR (premium AND book allows premium access)
+      const hasFullAccess = hasBoughtBook || (hasPremium && book.requiresPremium);
+
+      if (hasFullAccess) {
+        return res.json({ pages, freePageNumbers: book.freePageNumbers ?? [], totalPages: pages.length, locked: false });
+      }
+
+      // Partial access: show free pages only
+      const specificFreeNums: number[] = Array.isArray(book.freePageNumbers) && book.freePageNumbers.length > 0
+        ? book.freePageNumbers
+        : [];
+      const freeCount = book.freePages ?? 0;
+      if (specificFreeNums.length === 0 && freeCount <= 0) {
+        return res.status(403).json({ error: book.requiresPremium ? "Requer premium" : "Compra necessária" });
+      }
+      const freePages = specificFreeNums.length > 0
+        ? pages.filter(p => specificFreeNums.includes(p.pageNumber))
+        : pages.slice(0, freeCount);
+      return res.json({ pages: freePages, freePageNumbers: specificFreeNums, totalPages: pages.length, locked: true });
     } catch (err) {
       console.error("[library] GET pages error:", err);
       res.status(500).json({ error: "Erro" });

@@ -265,8 +265,7 @@ export default function Home() {
 
   const purchased = purchaseStatus?.purchased ?? false;
   const isAdmin = user?.role === "admin";
-  const hasPremium = (user as any)?.hasPremium ?? false;
-  const hasAccess = purchased || isAdmin || hasPremium;
+  const hasAccess = purchased || isAdmin;
 
   const { data: todayData, isLoading: isLoadingChapter } = useQuery<{ chapter: DailyChapter | null; dayOfYear: number }>({
     queryKey: ["/api/book/today"],
