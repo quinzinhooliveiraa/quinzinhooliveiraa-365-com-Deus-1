@@ -4,7 +4,6 @@ import { ptBR } from "date-fns/locale";
 import {
   PenLine, ChevronRight, Quote, CheckCircle2, BarChart2, BookOpen,
 } from "lucide-react";
-import PremiumPaywall from "@/components/PremiumPaywall";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreateEntry } from "@/hooks/useJournal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -270,7 +269,6 @@ export default function Home() {
   const { data: todayData, isLoading: isLoadingChapter } = useQuery<{ chapter: DailyChapter | null; dayOfYear: number }>({
     queryKey: ["/api/book/today"],
     queryFn: async () => (await fetch("/api/book/today", { credentials: "include" })).json(),
-    enabled: hasAccess,
   });
 
   const { data: entries = [] } = useQuery<any[]>({
@@ -317,62 +315,56 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Devotional Paywall — shown when no access */}
-      {!hasAccess && (
-        <div className="bg-card/80 border border-border/60 rounded-xl overflow-hidden shadow-sm" data-testid="card-devotional-paywall">
-          <div className="bg-primary/8 border-b border-border/50 px-5 py-3 flex items-center gap-2">
-            <span className="text-primary text-sm shrink-0">✦</span>
-            <span className="text-xs font-sans font-semibold text-primary uppercase tracking-[0.15em]">Devocional de Hoje</span>
-          </div>
-          <PremiumPaywall
-            icon={<BookOpen className="w-7 h-7 text-primary" />}
-            title="Devocional Diário"
-            description="Acede ao encontro diário com o Pai — versículo, reflexão e oração guiada para cada dia do ano."
-            features={[
-              "365 encontros diários com Deus Pai",
-              "Versículo, reflexão e oração guiada",
-              "Biblioteca com mais livros espirituais",
-              "Comunidade de fé",
-            ]}
-          />
+      {/* Devotional — visible to all, paywall on read button if not purchased */}
+      <div className="bg-card/80 border border-border/60 rounded-xl overflow-hidden shadow-sm backdrop-blur-sm" data-testid="card-daily-devotional">
+        <div className="bg-primary/8 border-b border-border/50 px-5 py-3 flex items-center gap-2">
+          <span className="text-primary text-sm shrink-0">✦</span>
+          <span className="text-xs font-sans font-semibold text-primary uppercase tracking-[0.15em]">Devocional de Hoje</span>
+          <span className="ml-auto text-xs text-muted-foreground">Dia {dayOfYear} de 365</span>
         </div>
-      )}
-
-      {/* Devotional — only for users with access, always first */}
-      {hasAccess && (
-        <div className="bg-card/80 border border-border/60 rounded-xl overflow-hidden shadow-sm backdrop-blur-sm" data-testid="card-daily-devotional">
-          <div className="bg-primary/8 border-b border-border/50 px-5 py-3 flex items-center gap-2">
-            <span className="text-primary text-sm shrink-0">✦</span>
-            <span className="text-xs font-sans font-semibold text-primary uppercase tracking-[0.15em]">Devocional de Hoje</span>
-            <span className="ml-auto text-xs text-muted-foreground">Dia {dayOfYear} de 365</span>
-          </div>
-          <div className="px-5 py-5">
-            {isLoadingChapter ? (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-4 bg-muted rounded w-3/4" />
-                <div className="h-3 bg-muted rounded" />
-                <div className="h-3 bg-muted rounded w-4/5" />
-              </div>
-            ) : chapter ? (
-              <>
-                <h2 className="font-serif text-xl font-bold text-foreground mb-2">{chapter.title}</h2>
-                {chapter.tag && <p className="text-xs text-primary font-medium mb-3 italic">"{chapter.tag}"</p>}
-                {chapter.excerpt && <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{chapter.excerpt}</p>}
+        <div className="px-5 py-5">
+          {isLoadingChapter ? (
+            <div className="space-y-3 animate-pulse">
+              <div className="h-4 bg-muted rounded w-3/4" />
+              <div className="h-3 bg-muted rounded" />
+              <div className="h-3 bg-muted rounded w-4/5" />
+            </div>
+          ) : chapter ? (
+            <>
+              <h2 className="font-serif text-xl font-bold text-foreground mb-2">{chapter.title}</h2>
+              {chapter.tag && <p className="text-xs text-primary font-medium mb-3 italic">"{chapter.tag}"</p>}
+              {chapter.excerpt && (
+                <p className={`text-sm text-muted-foreground leading-relaxed ${!hasAccess ? "line-clamp-2 select-none" : "line-clamp-3"}`}>
+                  {chapter.excerpt}
+                </p>
+              )}
+              {hasAccess ? (
                 <button onClick={() => navigate("/book?open=today")} className="mt-4 flex items-center gap-1.5 text-sm font-medium text-primary" data-testid="button-read-devotional">
                   Ler devocional completo <ChevronRight size={14} />
                 </button>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground mb-1">Ainda não há encontro registado para hoje.</p>
-                <button onClick={() => navigate("/book")} className="text-sm font-medium text-primary flex items-center gap-1 mx-auto" data-testid="button-explore-devotional">
-                  Buscar o Senhor hoje <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="mt-4 pt-4 border-t border-border/40">
+                  <p className="text-xs text-muted-foreground mb-3">Para ler o devocional completo e aceder aos 365 encontros, adquire o livro.</p>
+                  <button
+                    onClick={() => navigate("/book")}
+                    className="flex items-center gap-1.5 text-sm font-medium text-primary"
+                    data-testid="button-unlock-devotional"
+                  >
+                    <BookOpen size={14} /> Desbloquear devocional <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground mb-1">Ainda não há encontro registado para hoje.</p>
+              <button onClick={() => navigate("/book")} className="text-sm font-medium text-primary flex items-center gap-1 mx-auto" data-testid="button-explore-devotional">
+                Buscar o Senhor hoje <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Check-in */}
       <DailyCheckIn />
