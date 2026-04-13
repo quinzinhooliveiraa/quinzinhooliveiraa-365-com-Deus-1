@@ -132,6 +132,8 @@ function UserCard({ user, onUpdate, onDelete, currentUserIsMaster, allUsers }: {
   const [grantBookDays, setGrantBookDays] = useState(7);
   const [adminConfirmAction, setAdminConfirmAction] = useState<"grant" | "revoke" | null>(null);
   const [adminConfirmText, setAdminConfirmText] = useState("");
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [showCancelSubConfirm, setShowCancelSubConfirm] = useState(false);
   const [showFixEmail, setShowFixEmail] = useState(false);
   const [fixEmailText, setFixEmailText] = useState("");
   const [fixingEmail, setFixingEmail] = useState(false);
@@ -312,13 +314,62 @@ function UserCard({ user, onUpdate, onDelete, currentUserIsMaster, allUsers }: {
             {!isMainAdmin && (
               <>
                 {user.isPremium || user.premiumReason === "paid" ? (
-                  <button
-                    onClick={() => onUpdate(user.id, { isPremium: false, premiumUntil: null })}
-                    className="text-[11px] px-3 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                    data-testid={`button-revoke-premium-${user.id}`}
-                  >
-                    <XCircle size={12} /> Revogar Premium
-                  </button>
+                  <>
+                    <button
+                      onClick={() => onUpdate(user.id, { isPremium: false, premiumUntil: null })}
+                      className="text-[11px] px-3 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                      data-testid={`button-revoke-premium-${user.id}`}
+                    >
+                      <XCircle size={12} /> Revogar Premium
+                    </button>
+                    {user.stripeSubscriptionId && !showCancelSubConfirm && (
+                      <button
+                        onClick={() => setShowCancelSubConfirm(true)}
+                        className="text-[11px] px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors flex items-center gap-1"
+                        data-testid={`button-cancel-sub-${user.id}`}
+                      >
+                        <XCircle size={12} /> Cancelar Assinatura Stripe
+                      </button>
+                    )}
+                    {user.stripeSubscriptionId && showCancelSubConfirm && (
+                      <div className="w-full bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-2">
+                        <p className="text-[11px] text-muted-foreground">
+                          Cancelar a assinatura Stripe de <strong className="text-foreground">{user.name}</strong>? Esta ação é irreversível.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowCancelSubConfirm(false)}
+                            className="flex-1 text-[11px] px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                            data-testid={`button-cancel-sub-cancel-${user.id}`}
+                          >
+                            Voltar
+                          </button>
+                          <button
+                            disabled={cancellingSubscription}
+                            onClick={async () => {
+                              setCancellingSubscription(true);
+                              try {
+                                const res = await fetch(`/api/admin/users/${user.id}/cancel-subscription`, { method: "POST", credentials: "include" });
+                                const data = await res.json();
+                                if (res.ok) {
+                                  queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+                                  setShowCancelSubConfirm(false);
+                                } else {
+                                  alert(data.message || "Erro ao cancelar");
+                                }
+                              } finally {
+                                setCancellingSubscription(false);
+                              }
+                            }}
+                            className="flex-1 text-[11px] px-3 py-1.5 rounded-lg bg-red-500 text-white font-medium disabled:opacity-40"
+                            data-testid={`button-confirm-cancel-sub-${user.id}`}
+                          >
+                            {cancellingSubscription ? "A cancelar..." : "Confirmar cancelamento"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <button
                     onClick={() => setShowGrantPremium(!showGrantPremium)}

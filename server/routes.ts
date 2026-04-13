@@ -2877,6 +2877,39 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/users/:id/cancel-subscription", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "Utilizador não encontrado" });
+
+      if (!user.stripeSubscriptionId) {
+        return res.status(400).json({ message: "Utilizador não tem assinatura Stripe activa" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      try {
+        await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+        console.log(`[admin] Cancelled Stripe subscription ${user.stripeSubscriptionId} for user ${user.email}`);
+      } catch (err: any) {
+        if (err?.code !== "resource_missing") throw err;
+        console.log(`[admin] Subscription ${user.stripeSubscriptionId} already gone, cleaning up`);
+      }
+
+      await storage.updateUser(userId, {
+        isPremium: false,
+        premiumUntil: null,
+        premiumReason: null,
+        stripeSubscriptionId: null,
+      });
+
+      res.json({ ok: true, message: "Assinatura cancelada com sucesso" });
+    } catch (error: any) {
+      console.error("[admin] cancel-subscription error:", error?.message ?? error);
+      res.status(500).json({ message: "Erro ao cancelar assinatura" });
+    }
+  });
+
   app.post("/api/admin/users/:id/fix-email", requireAdmin, async (req: Request, res: Response) => {
     try {
       const userId = req.params.id;
