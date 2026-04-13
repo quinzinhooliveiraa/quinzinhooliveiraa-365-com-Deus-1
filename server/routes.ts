@@ -3151,6 +3151,34 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/admin/stripe/plans/:priceId", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const stripe = await getUncachableStripeClient();
+      const { priceId } = req.params;
+      const { name, description, amount, currency, interval } = req.body;
+      if (!name || !amount || !interval) {
+        return res.status(400).json({ message: "Nome, valor e intervalo são obrigatórios" });
+      }
+      const oldPrice = await stripe.prices.retrieve(priceId);
+      const productId = typeof oldPrice.product === "string" ? oldPrice.product : oldPrice.product.id;
+      await stripe.prices.update(priceId, { active: false });
+      await stripe.products.update(productId, {
+        name,
+        description: description || "",
+      });
+      const newPrice = await stripe.prices.create({
+        product: productId,
+        unit_amount: Math.round(Number(amount) * 100),
+        currency: currency || "brl",
+        recurring: { interval },
+      });
+      res.json({ product_id: productId, price_id: newPrice.id, success: true });
+    } catch (err: any) {
+      console.error("[admin/stripe/plans/patch] Error:", err?.message);
+      res.status(500).json({ message: err?.message || "Erro ao editar plano" });
+    }
+  });
+
   app.delete("/api/admin/stripe/plans/:priceId", requireAdmin, async (req: Request, res: Response) => {
     try {
       const stripe = await getUncachableStripeClient();

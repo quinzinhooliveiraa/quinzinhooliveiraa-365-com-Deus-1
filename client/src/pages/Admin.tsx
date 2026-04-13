@@ -1333,6 +1333,8 @@ export default function Admin() {
   const [bookPriceInput, setBookPriceInput] = useState("");
   const [newPlanForm, setNewPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "month" | "year" });
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editPlanForm, setEditPlanForm] = useState({ name: "", description: "", amount: "", interval: "month" as "month" | "year" });
 
   const { data: adminSettings = {}, isLoading: settingsLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/admin/settings"],
@@ -1388,6 +1390,18 @@ export default function Admin() {
       toast({ title: "Plano arquivado." });
     },
     onError: () => toast({ title: "Erro ao arquivar plano", variant: "destructive" }),
+  });
+
+  const editPlanMutation = useMutation({
+    mutationFn: ({ priceId, data }: { priceId: string; data: typeof editPlanForm }) =>
+      apiRequest("PATCH", `/api/admin/stripe/plans/${priceId}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stripe/products"] });
+      setEditingPlanId(null);
+      setEditPlanForm({ name: "", description: "", amount: "", interval: "month" });
+      toast({ title: "Plano atualizado com sucesso!" });
+    },
+    onError: (err: any) => toast({ title: err?.message || "Erro ao atualizar plano", variant: "destructive" }),
   });
 
   const updateChannelPremiumMutation = useMutation({
@@ -4882,29 +4896,124 @@ function CouponsPanel() {
             ) : (
               <div className="space-y-2">
                 {stripePlans.map(plan => (
-                  <div key={plan.price_id} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-border" data-testid={`plan-row-${plan.price_id}`}>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{plan.product_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        R$ {((plan.unit_amount ?? 0) / 100).toFixed(2).replace(".", ",")}
-                        {plan.recurring ? ` / ${plan.recurring.interval === "month" ? "mês" : "ano"}` : ""}
-                        {plan.product_description ? ` · ${plan.product_description}` : ""}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground/60 font-mono truncate">{plan.price_id}</p>
+                  <div key={plan.price_id} className="rounded-lg border border-border overflow-hidden" data-testid={`plan-row-${plan.price_id}`}>
+                    <div className="flex items-center justify-between gap-2 p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{plan.product_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          R$ {((plan.unit_amount ?? 0) / 100).toFixed(2).replace(".", ",")}
+                          {plan.recurring ? ` / ${plan.recurring.interval === "month" ? "mês" : "ano"}` : ""}
+                          {plan.product_description ? ` · ${plan.product_description}` : ""}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 font-mono truncate">{plan.price_id}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            if (editingPlanId === plan.price_id) {
+                              setEditingPlanId(null);
+                            } else {
+                              setEditingPlanId(plan.price_id);
+                              setEditPlanForm({
+                                name: plan.product_name,
+                                description: plan.product_description ?? "",
+                                amount: ((plan.unit_amount ?? 0) / 100).toFixed(2),
+                                interval: (plan.recurring?.interval as "month" | "year") ?? "month",
+                              });
+                            }
+                          }}
+                          className={`transition-colors ${editingPlanId === plan.price_id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                          title="Editar plano"
+                          data-testid={`button-edit-plan-${plan.price_id}`}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Arquivar o plano "${plan.product_name}"? Utilizadores existentes não serão afetados.`)) {
+                              archivePlanMutation.mutate(plan.price_id);
+                            }
+                          }}
+                          disabled={archivePlanMutation.isPending}
+                          className="text-muted-foreground hover:text-red-500 transition-colors"
+                          title="Arquivar plano"
+                          data-testid={`button-archive-plan-${plan.price_id}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Arquivar o plano "${plan.product_name}"? Utilizadores existentes não serão afetados.`)) {
-                          archivePlanMutation.mutate(plan.price_id);
-                        }
-                      }}
-                      disabled={archivePlanMutation.isPending}
-                      className="text-muted-foreground hover:text-red-500 transition-colors flex-shrink-0"
-                      title="Arquivar plano"
-                      data-testid={`button-archive-plan-${plan.price_id}`}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+
+                    {editingPlanId === plan.price_id && (
+                      <div className="border-t border-border bg-muted/30 p-3 space-y-3">
+                        <p className="text-xs font-medium text-muted-foreground">Editar plano — o preço antigo será arquivado e um novo criado no Stripe</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="col-span-2 space-y-1">
+                            <label className="text-xs text-muted-foreground">Nome do Plano *</label>
+                            <input
+                              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={editPlanForm.name}
+                              onChange={e => setEditPlanForm(p => ({ ...p, name: e.target.value }))}
+                              data-testid={`input-edit-plan-name-${plan.price_id}`}
+                            />
+                          </div>
+                          <div className="col-span-2 space-y-1">
+                            <label className="text-xs text-muted-foreground">Descrição</label>
+                            <input
+                              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={editPlanForm.description}
+                              onChange={e => setEditPlanForm(p => ({ ...p, description: e.target.value }))}
+                              data-testid={`input-edit-plan-description-${plan.price_id}`}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Valor (R$) *</label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="w-full border border-border rounded-md pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                                value={editPlanForm.amount}
+                                onChange={e => setEditPlanForm(p => ({ ...p, amount: e.target.value }))}
+                                data-testid={`input-edit-plan-amount-${plan.price_id}`}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Período *</label>
+                            <select
+                              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={editPlanForm.interval}
+                              onChange={e => setEditPlanForm(p => ({ ...p, interval: e.target.value as "month" | "year" }))}
+                              data-testid={`select-edit-plan-interval-${plan.price_id}`}
+                            >
+                              <option value="month">Mensal</option>
+                              <option value="year">Anual</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => editPlanMutation.mutate({ priceId: plan.price_id, data: editPlanForm })}
+                            disabled={editPlanMutation.isPending || !editPlanForm.name || !editPlanForm.amount}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-sm font-medium disabled:opacity-50"
+                            data-testid={`button-save-edit-plan-${plan.price_id}`}
+                          >
+                            {editPlanMutation.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
+                            Guardar Alterações
+                          </button>
+                          <button
+                            onClick={() => setEditingPlanId(null)}
+                            className="px-4 py-2 rounded-md border border-border text-sm text-muted-foreground"
+                            data-testid={`button-cancel-edit-plan-${plan.price_id}`}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
