@@ -2164,7 +2164,7 @@ function Paywall() {
 // ─── Main Community Component ─────────────────────────────────────────────────
 
 export default function Community() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView | null>(null);
   const [activeLiveId, setActiveLiveId] = useState<number | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -2260,6 +2260,14 @@ export default function Community() {
     queryClient.invalidateQueries({ queryKey: ["/api/chat/channels"] });
     if (activeView?.type === "channel" && activeView.channelId === id) setActiveView(null);
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-pulse text-muted-foreground text-sm">A carregar...</div>
+      </div>
+    );
+  }
 
   if (!isPremium) return <Paywall />;
 

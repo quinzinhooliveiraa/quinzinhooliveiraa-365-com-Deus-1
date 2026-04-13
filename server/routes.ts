@@ -5274,24 +5274,24 @@ REGRAS:
 
   // ── DMs ────────────────────────────────────────────────────────────────────
 
-  app.get("/api/chat/dms", requireAuth, async (req, res) => {
+  app.get("/api/chat/dms", requireAuth, requirePremium, async (req, res) => {
     const convs = await storage.getDmConversations(req.session.userId!);
     res.json(convs);
   });
 
-  app.post("/api/chat/dms/:userId", requireAuth, async (req, res) => {
+  app.post("/api/chat/dms/:userId", requireAuth, requirePremium, async (req, res) => {
     const conv = await storage.getOrCreateDmConversation(req.session.userId!, req.params.userId);
     res.json(conv);
   });
 
-  app.get("/api/chat/dms/:conversationId/messages", requireAuth, async (req, res) => {
+  app.get("/api/chat/dms/:conversationId/messages", requireAuth, requirePremium, async (req, res) => {
     const limit = req.query.limit ? Number(req.query.limit) : 50;
     const before = req.query.before ? new Date(req.query.before as string) : undefined;
     const messages = await storage.getDmMessages(Number(req.params.conversationId), limit, before);
     res.json(messages);
   });
 
-  app.post("/api/chat/dms/:conversationId/messages", requireAuth, async (req, res) => {
+  app.post("/api/chat/dms/:conversationId/messages", requireAuth, requirePremium, async (req, res) => {
     try {
       const data = insertDmMessageSchema.parse({
         ...req.body,
@@ -5318,19 +5318,19 @@ REGRAS:
     res.sendStatus(204);
   });
 
-  app.get("/api/community/members", requireAuth, async (_req, res) => {
+  app.get("/api/community/members", requireAuth, requirePremium, async (_req, res) => {
     const members = await storage.getCommunityMembers();
     res.json(members);
   });
 
-  app.get("/api/community/following", requireAuth, async (req, res) => {
+  app.get("/api/community/following", requireAuth, requirePremium, async (req, res) => {
     const following = await storage.getFollowing(req.session.userId!);
     res.json(following);
   });
 
   // ── Lives ──────────────────────────────────────────────────────────────────
 
-  app.get("/api/chat/lives", requireAuth, async (_req, res) => {
+  app.get("/api/chat/lives", requireAuth, requirePremium, async (_req, res) => {
     const lives = await storage.getLiveSessions();
     res.json(lives);
   });
