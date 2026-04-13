@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useGeoPrice } from "@/hooks/useGeoPrice";
 import {
   ArrowRight, ArrowLeft, Bell, Check,
-  Map, BookOpen, PenLine, MessageCircle, Smile,
+  BookOpen, PenLine, Smile,
   BellRing, Crown, Loader2, CheckCircle2, Clock,
-  ShieldCheck, Sparkles, FileText, Brain,
+  ShieldCheck, Sparkles,
   Smartphone, Plus, Share
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,6 @@ const STEP_ANIMATIONS: Record<string, string> = {
   pwa:           "https://assets5.lottiefiles.com/packages/lf20_pcwuqiwb.json",
   checkin:       "https://assets5.lottiefiles.com/packages/lf20_fcfjwiyb.json",
   journal:       "https://assets6.lottiefiles.com/packages/lf20_oj3avzxk.json",
-  questions:     "https://assets4.lottiefiles.com/packages/lf20_hy4txm4n.json",
-  journeys:      "https://assets1.lottiefiles.com/packages/lf20_6e0enuyl.json",
   book:          "https://assets1.lottiefiles.com/packages/lf20_puciaact.json",
   notifications: "https://assets1.lottiefiles.com/packages/lf20_6yuhewez.json",
   premium:       "https://assets3.lottiefiles.com/packages/lf20_qpkehuwq.json",
@@ -100,9 +98,9 @@ function PwaSkipButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-type StepId = "welcome" | "profile" | "pwa" | "checkin" | "journal" | "questions" | "journeys" | "book" | "notifications" | "premium";
+type StepId = "welcome" | "profile" | "pwa" | "checkin" | "journal" | "book" | "notifications" | "premium";
 
-const STEP_ORDER: StepId[] = ["welcome", "profile", "pwa", "checkin", "journal", "questions", "journeys", "book", "notifications", "premium"];
+const STEP_ORDER: StepId[] = ["welcome", "profile", "pwa", "checkin", "journal", "book", "notifications", "premium"];
 
 const INTERESTS = [
   { id: "fe", label: "Fé" },
@@ -613,88 +611,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {currentStep === "questions" && (
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-28 h-28 mx-auto stagger-1">
-                <LottiePlayer
-                  url={STEP_ANIMATIONS.questions}
-                  fallback={
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center animate-float">
-                      <Brain size={28} className="text-primary" />
-                    </div>
-                  }
-                  className="w-28 h-28"
-                />
-              </div>
-              <div className="w-full max-w-[280px] space-y-3 stagger-1">
-                <div className="bg-card rounded-xl border border-border p-5 shadow-sm transform -rotate-2 hover:rotate-0 transition-transform duration-500">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                    <MessageCircle size={20} className="text-primary" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground text-left">"O que você faria diferente se ninguém estivesse observando?"</p>
-                </div>
-                <div className="bg-card rounded-xl border border-border p-4 shadow-sm transform rotate-1 opacity-70 scale-95 stagger-3">
-                  <p className="text-xs text-muted-foreground text-left">"Qual é o medo que mais te impede de agir?"</p>
-                </div>
-              </div>
-              <div className="space-y-2 pt-2 stagger-2">
-                <h2 className="text-2xl font-serif text-foreground">Cartas de Reflexão</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed px-2">
-                  Centenas de perguntas profundas para explorar sozinho ou em conversa com amigos. Deslize para descobrir novas cartas.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {currentStep === "journeys" && (
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-32 h-32 mx-auto stagger-1">
-                <LottiePlayer
-                  url={STEP_ANIMATIONS.journeys}
-                  fallback={
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center animate-float">
-                      <Map size={28} className="text-primary" />
-                    </div>
-                  }
-                  className="w-32 h-32"
-                />
-              </div>
-              <div className="w-full max-w-[280px] bg-card rounded-xl border border-border p-6 shadow-sm space-y-4 stagger-1">
-                <div className="space-y-2">
-                  {["Autoconhecimento", "Propósito", "Relações"].map((name, i) => (
-                    <div
-                      key={name}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-all duration-300 ${i === 0 ? "bg-primary/5 border border-primary/20" : "bg-muted/30"}`}
-                      style={{ animation: `staggerFade 0.4s ease-out ${0.3 + i * 0.12}s both` }}
-                    >
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {i === 0 ? <CheckCircle2 size={14} /> : `${i + 1}`}
-                      </div>
-                      <span className={`text-xs font-medium ${i === 0 ? "text-foreground" : "text-muted-foreground"}`}>{name}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/15 text-left" style={{ animation: `staggerFade 0.4s ease-out 0.7s both` }}>
-                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Brain size={14} className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-foreground">Relatório com IA</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Ao completar, receba uma análise personalizada</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2 pt-2 stagger-2">
-                <h2 className="text-2xl font-serif text-foreground">Jornadas de 30 Dias</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed px-2">
-                  Trilhe caminhos temáticos com exercícios diários. Ao completar uma jornada, receba um relatório personalizado feito por IA com seus pontos fortes e dicas práticas.
-                </p>
-              </div>
-            </div>
-          )}
-
           {currentStep === "book" && (
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="w-32 h-32 mx-auto stagger-1">
@@ -863,9 +779,9 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   <div className="space-y-2">
                     {[
                       "Check-in diário de humor",
-                      "5 cartas por tema de reflexão",
-                      "Diário básico com texto",
-                      "Trechos selecionados do livro"
+                      "Diário espiritual com texto",
+                      "Devocional diário do livro",
+                      "Notificações de lembrança"
                     ].map((item, i) => (
                       <div key={item} className="flex items-center gap-2 text-left" style={{ animation: `staggerFade 0.3s ease-out ${0.3 + i * 0.08}s both` }}>
                         <Check size={14} className="text-green-500 shrink-0" />
@@ -876,44 +792,24 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                 </div>
 
                 <div className="bg-primary/5 rounded-xl border border-primary/20 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-1">
                     <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
                       <Crown size={10} /> Premium
                     </p>
                     <p className="text-xs font-bold text-foreground">{geo.monthlyFormatted}<span className="text-muted-foreground font-normal">/mês</span></p>
-                    {geo.currency !== "BRL" && <p className="text-[9px] text-muted-foreground leading-tight">aprox. · cobrado em BRL</p>}
                   </div>
                   <div className="space-y-2">
                     {[
                       "Tudo do plano gratuito",
-                      "Todas as cartas de reflexão ilimitadas",
-                      "Jornadas completas de 30 dias",
-                      "1º relatório de jornada com IA grátis",
-                      "Diário com fotos, desenhos e banners",
-                      "Notificações personalizadas"
+                      "Diário com fotos e desenhos",
+                      "Notificações personalizadas",
+                      "Acesso a todo o conteúdo do livro"
                     ].map((item, i) => (
                       <div key={item} className="flex items-center gap-2 text-left" style={{ animation: `staggerFade 0.3s ease-out ${0.4 + i * 0.08}s both` }}>
                         <Check size={14} className="text-amber-500 shrink-0" />
                         <span className="text-xs text-foreground">{item}</span>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                <div className="bg-amber-500/5 rounded-xl border border-amber-500/20 p-3 space-y-2 stagger-4">
-                  <div className="flex items-center gap-2 justify-center">
-                    <Sparkles size={14} className="text-amber-500" />
-                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">14 dias grátis incluídos — podes ganhar 30!</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-left">
-                      <Sparkles size={11} className="text-amber-500 shrink-0" />
-                      <p className="text-[10px] text-muted-foreground">Ativa agora e fica com <span className="font-semibold text-foreground">30 dias grátis no total</span>, sem pagar nada</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-left">
-                      <ShieldCheck size={11} className="text-green-500 shrink-0" />
-                      <p className="text-[10px] text-muted-foreground">Sem custos durante o período grátis. Cancelas quando quiseres.</p>
-                    </div>
                   </div>
                 </div>
               </div>
