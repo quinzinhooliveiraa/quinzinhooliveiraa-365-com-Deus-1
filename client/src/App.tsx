@@ -12,7 +12,6 @@ import Auth from "@/pages/Auth";
 import Onboarding from "@/components/Onboarding";
 import { refreshPushSubscription } from "@/utils/pushNotifications";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
-import WelcomeTrialModal from "@/components/WelcomeTrialModal";
 
 import Home from "@/pages/Home";
 import Journal from "@/pages/Journal";
@@ -31,7 +30,6 @@ function AuthGate() {
   const needsOnboarding = user && localStorage.getItem("365encontros-needs-onboarding") === "true";
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [bonusBanner, setBonusBanner] = useState<"success" | "cancel" | "checkout-success" | null>(null);
   const [pwaReturnBanner, setPwaReturnBanner] = useState(false);
 
@@ -118,15 +116,6 @@ function AuthGate() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (user && user.trialEndsAt && user.role !== "admin") {
-      const seenKey = `365encontros-welcome-seen-${user.id}`;
-      if (!localStorage.getItem(seenKey)) {
-        const timer = setTimeout(() => setShowWelcomeModal(true), 800);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [user?.id, user?.trialEndsAt]);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -217,14 +206,6 @@ function AuthGate() {
             <p className="text-xs text-muted-foreground">Volta à app no ecrã inicial do iPhone.</p>
           </div>
         </div>
-      )}
-      {showWelcomeModal && user && (
-        <WelcomeTrialModal
-          userId={user.id}
-          trialEndsAt={user.trialEndsAt}
-          trialBonusClaimed={user.trialBonusClaimed}
-          onClose={() => setShowWelcomeModal(false)}
-        />
       )}
     </MobileLayout>
   );

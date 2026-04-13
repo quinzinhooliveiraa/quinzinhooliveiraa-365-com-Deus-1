@@ -2,9 +2,8 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Crown, Check, Sparkles, PenLine, Map, Gift, Ticket, ChevronDown, ChevronUp, Settings } from "lucide-react";
+import { ArrowLeft, Crown, Check, Sparkles, PenLine, Map, Ticket, ChevronDown, ChevronUp, Settings } from "lucide-react";
 import { useLocation } from "wouter";
-import CardSetupModal from "@/components/CardSetupModal";
 import SubscriptionCheckoutModal from "@/components/SubscriptionCheckoutModal";
 import { useGeoPrice } from "@/hooks/useGeoPrice";
 
@@ -12,7 +11,6 @@ export default function Premium() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { price: geo } = useGeoPrice();
-  const [showCardModal, setShowCardModal] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<{
     priceId: string;
     label: string;
@@ -126,36 +124,15 @@ export default function Premium() {
     queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
   };
 
-  const handleSetupForBonus = () => {
-    setShowCardModal(true);
-  };
-
-  const handleCardSuccess = () => {
-    setShowCardModal(false);
-    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-  };
-
   const features = [
     { icon: Sparkles, text: "Todas as cartas de reflexão desbloqueadas" },
     { icon: Map, text: "Jornadas de 30 dias completas" },
     { icon: PenLine, text: "Diário ilimitado com todas as funcionalidades" },
   ];
 
-  const trialDaysLeft = user?.trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
-
-  const canActivateTrial = !user?.hasPremium && !user?.trialBonusClaimed && user?.role !== "admin";
-  const isOnTrial = user?.premiumReason === "trial" && trialDaysLeft > 0;
 
   return (
     <div className="min-h-screen pb-24 animate-in fade-in duration-500" data-testid="page-premium">
-      {showCardModal && (
-        <CardSetupModal
-          onSuccess={handleCardSuccess}
-          onClose={() => setShowCardModal(false)}
-        />
-      )}
       {checkoutPlan && (
         <SubscriptionCheckoutModal
           plan={checkoutPlan}
@@ -185,21 +162,7 @@ export default function Premium() {
           </p>
         </div>
 
-        {isOnTrial && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 text-center" data-testid="trial-active-banner">
-            <p className="text-amber-700 dark:text-amber-400 font-semibold text-base">
-              ✨ {trialDaysLeft} {trialDaysLeft === 1 ? "dia restante" : "dias restantes"} de trial gratuito
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Aproveita para explorar tudo — sem cartão, sem compromisso.
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Depois do trial, escolhe um plano para continuar.
-            </p>
-          </div>
-        )}
-
-        {user?.hasPremium && user?.premiumReason !== "trial" && (
+        {user?.hasPremium && (
           <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6 text-center space-y-3" data-testid="premium-active-banner">
             <p className="text-green-600 dark:text-green-400 font-semibold">Já tens o Premium ativo!</p>
             <p className="text-sm text-muted-foreground">Obrigado pelo apoio a 365 Encontros com Deus Pai.</p>
@@ -228,24 +191,6 @@ export default function Premium() {
         </div>
 
         <div className="space-y-4">
-          {canActivateTrial && (
-            <button
-              onClick={handleSetupForBonus}
-              disabled={false}
-              className="w-full p-4 rounded-xl border-2 border-green-500 bg-green-500/5 hover:bg-green-500/10 transition-colors text-left"
-              data-testid="button-activate-trial"
-            >
-              <div className="flex items-center gap-3">
-                <Gift className="w-6 h-6 text-green-600 flex-shrink-0" />
-                <div>
-                  <p className="font-bold text-lg">Ganhar 30 dias grátis</p>
-                  <p className="text-muted-foreground text-sm">Registas o cartão — <span className="font-medium text-green-600">sem qualquer cobrança agora</span></p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Só pagas após os 30 dias, se quiseres continuar</p>
-                </div>
-              </div>
-            </button>
-          )}
-
           {sortedPlans.map((p: any) => {
             const rec = p.recurring as { interval: string; interval_count?: number } | null;
             const label = getPeriodLabel(rec);

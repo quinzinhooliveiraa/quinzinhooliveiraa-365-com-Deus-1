@@ -2,13 +2,12 @@ import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  PenLine, ChevronRight, Crown, CreditCard, Quote, CheckCircle2, BarChart2,
+  PenLine, ChevronRight, Quote, CheckCircle2, BarChart2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreateEntry } from "@/hooks/useJournal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import CardSetupModal from "@/components/CardSetupModal";
 import { reflectionPhrases } from "@/data/reflectionPhrases";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -46,40 +45,6 @@ type DailyChapter = {
 };
 type MoodCheckin = { id: number; mood: string; entry: string | null; createdAt: string; };
 
-/* ─────── TrialBanner ─────── */
-function TrialBanner({ trialEndsAt, trialBonusClaimed, onUpgrade, onClaim }: {
-  trialEndsAt: string | null; trialBonusClaimed: boolean;
-  onUpgrade: () => void; onClaim: () => void;
-}) {
-  if (!trialEndsAt) return null;
-  const daysLeft = Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000));
-  if (daysLeft <= 0) return null;
-  const urgent = daysLeft <= 2;
-  if (!trialBonusClaimed) {
-    return (
-      <button onClick={onClaim} className="w-full text-left rounded-2xl px-4 py-3 flex items-center gap-3 bg-amber-500/10 border border-amber-400/30" data-testid="trial-banner-home">
-        <CreditCard size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Ganha +16 dias e fica com 30 dias grátis!</p>
-          <p className="text-xs text-muted-foreground truncate">Ativa agora — sem pagar nada.</p>
-        </div>
-        <span className="text-xs font-medium text-amber-600 dark:text-amber-400 shrink-0">Ganhar →</span>
-      </button>
-    );
-  }
-  return (
-    <button onClick={onUpgrade} className={`w-full text-left rounded-2xl px-4 py-3 flex items-center gap-3 ${urgent ? "bg-red-500/10 border border-red-400/30" : "bg-amber-500/10 border border-amber-400/30"}`} data-testid="trial-banner-home">
-      <Crown size={18} className={`shrink-0 ${urgent ? "text-red-500" : "text-amber-500"}`} />
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold ${urgent ? "text-red-600 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>
-          {daysLeft === 1 ? "Último dia de trial!" : `${daysLeft} dias de trial restantes`}
-        </p>
-        <p className="text-xs text-muted-foreground truncate">{urgent ? "Assina agora para não perderes o acesso" : "Acede à comunidade e ao devocional completo"}</p>
-      </div>
-      <span className="text-xs font-medium text-primary shrink-0">Ver planos →</span>
-    </button>
-  );
-}
 
 /* ─────── Daily Check-in (DB) — múltiplos por dia ─────── */
 const COOLDOWN_MS = 15 * 60 * 1000;
@@ -277,7 +242,6 @@ export default function Home() {
   const [journalText, setJournalText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [showCardModal, setShowCardModal] = useState(false);
 
   const today = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1);
@@ -351,16 +315,6 @@ export default function Home() {
           <span className="text-primary font-semibold">✦</span> Encontro #{dayOfYear} com Deus Pai
         </p>
       </div>
-
-      {/* Trial Banner */}
-      {user?.trialEndsAt && user.role !== "admin" && (
-        <TrialBanner
-          trialEndsAt={user.trialEndsAt}
-          trialBonusClaimed={user.trialBonusClaimed ?? false}
-          onUpgrade={() => navigate("/premium")}
-          onClaim={() => setShowCardModal(true)}
-        />
-      )}
 
       {/* Devotional — only for users with access, always first */}
       {hasAccess && (
@@ -442,9 +396,6 @@ export default function Home() {
         </div>
       </div>
 
-      {showCardModal && (
-        <CardSetupModal onClose={() => setShowCardModal(false)} onSuccess={() => setShowCardModal(false)} />
-      )}
     </div>
   );
 }
