@@ -17,7 +17,8 @@ export default function Premium() {
     priceId: string;
     label: string;
     priceFormatted: string;
-    interval: "month" | "year";
+    interval: string;
+    periodShort: string;
     badge?: string;
   } | null>(null);
   const [couponCode, setCouponCode] = useState("");
@@ -59,11 +60,47 @@ export default function Premium() {
     },
   });
 
-  const monthlyPrice = products.find((p: any) => p.recurring?.interval === "month");
-  const yearlyPrice = products.find((p: any) => p.recurring?.interval === "year");
+  function getPeriodLabel(recurring: { interval: string; interval_count?: number } | null): string {
+    if (!recurring) return "Vitalício";
+    const { interval, interval_count } = recurring;
+    if (interval === "week") return "Semanal";
+    if (interval === "month" && interval_count === 3) return "Trimestral";
+    if (interval === "month" && interval_count === 6) return "Semestral";
+    if (interval === "month") return "Mensal";
+    if (interval === "year") return "Anual";
+    return "Personalizado";
+  }
 
-  const handleCheckout = (priceId: string, label: string, priceFormatted: string, interval: "month" | "year") => {
-    setCheckoutPlan({ priceId, label, priceFormatted, interval });
+  function getPeriodShort(recurring: { interval: string; interval_count?: number } | null): string {
+    if (!recurring) return "único";
+    const { interval, interval_count } = recurring;
+    if (interval === "week") return "semana";
+    if (interval === "month" && interval_count === 3) return "3 meses";
+    if (interval === "month" && interval_count === 6) return "6 meses";
+    if (interval === "month") return "mês";
+    if (interval === "year") return "ano";
+    return "período";
+  }
+
+  function getPriceFormatted(p: any): string {
+    const rec = p.recurring as { interval: string; interval_count?: number } | null;
+    if (rec?.interval === "month" && !rec?.interval_count) return geo.monthlyFormatted;
+    if (rec?.interval === "year") return geo.yearlyFormatted;
+    return `R$ ${((p.unit_amount ?? 0) / 100).toFixed(2).replace(".", ",")}`;
+  }
+
+  const sortedPlans = [...products].sort((a, b) => (a.unit_amount ?? 0) - (b.unit_amount ?? 0));
+  const bestValuePlan = [...products]
+    .filter((p: any) => p.recurring)
+    .sort((a, b) => (b.unit_amount ?? 0) - (a.unit_amount ?? 0))[0];
+
+  const handleCheckout = (p: any) => {
+    const rec = p.recurring as { interval: string; interval_count?: number } | null;
+    const label = getPeriodLabel(rec);
+    const priceFormatted = getPriceFormatted(p);
+    const periodShort = getPeriodShort(rec);
+    const interval = rec ? (rec.interval_count ? `month_${rec.interval_count}` : rec.interval) : "one_time";
+    setCheckoutPlan({ priceId: p.price_id, label, priceFormatted, interval, periodShort });
   };
 
   const handleCheckoutSuccess = () => {
@@ -167,7 +204,7 @@ export default function Premium() {
           {canActivateTrial && (
             <button
               onClick={handleSetupForBonus}
-              disabled={!!loading}
+              disabled={false}
               className="w-full p-4 rounded-xl border-2 border-green-500 bg-green-500/5 hover:bg-green-500/10 transition-colors text-left"
               data-testid="button-activate-trial"
             >
@@ -182,46 +219,53 @@ export default function Premium() {
             </button>
           )}
 
-          {monthlyPrice && (
-            <button
-              onClick={() => handleCheckout(monthlyPrice.price_id, "Mensal", geo.monthlyFormatted, "month")}
-              className="w-full p-4 rounded-xl border-2 border-primary bg-primary/5 hover:bg-primary/10 transition-colors text-left"
-              data-testid="button-checkout-monthly"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-lg">Mensal</p>
-                  <p className="text-muted-foreground text-sm">Cancele quando quiser</p>
+          {sortedPlans.map((p: any) => {
+            const rec = p.recurring as { interval: string; interval_count?: number } | null;
+            const label = getPeriodLabel(rec);
+            const short = getPeriodShort(rec);
+            const priceFormatted = getPriceFormatted(p);
+            const isBest = bestValuePlan && p.price_id === bestValuePlan.price_id;
+            const isLifetime = !rec;
+            return (
+              <button
+                key={p.price_id}
+                onClick={() => handleCheckout(p)}
+                className={`w-full p-4 rounded-xl border-2 transition-colors text-left relative ${
+                  isLifetime
+                    ? "border-purple-500 bg-purple-500/5"
+                    : isBest
+                    ? "border-amber-500 bg-amber-500/5"
+                    : "border-primary bg-primary/5"
+                }`}
+                data-testid={`button-checkout-${p.price_id}`}
+              >
+                {isBest && !isLifetime && (
+                  <div className="absolute top-0 right-0 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                    MELHOR VALOR
+                  </div>
+                )}
+                {isLifetime && (
+                  <div className="absolute top-0 right-0 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                    VITALÍCIO
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-lg">{p.product_name || label}</p>
+                    <p className="text-muted-foreground text-sm truncate">
+                      {p.product_description || (isLifetime ? "Acesso permanente" : "Cancele quando quiser")}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-2xl font-bold ${isLifetime ? "text-purple-600 dark:text-purple-400" : isBest ? "text-amber-600 dark:text-amber-400" : "text-primary"}`}>
+                      {priceFormatted}
+                    </p>
+                    <p className="text-xs text-muted-foreground">/{short}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">{geo.monthlyFormatted}</p>
-                  <p className="text-xs text-muted-foreground">/mês</p>
-                </div>
-              </div>
-            </button>
-          )}
-
-          {yearlyPrice && (
-            <button
-              onClick={() => handleCheckout(yearlyPrice.price_id, "Anual", geo.yearlyFormatted, "year")}
-              className="w-full p-4 rounded-xl border-2 border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 transition-colors text-left relative overflow-hidden"
-              data-testid="button-checkout-yearly"
-            >
-              <div className="absolute top-0 right-0 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-                ECONOMIZE 33%
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-lg">Anual</p>
-                  <p className="text-muted-foreground text-sm">Melhor custo-benefício</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{geo.yearlyFormatted}</p>
-                  <p className="text-xs text-muted-foreground">/ano (~{geo.yearlyMonthlyFormatted}/mês)</p>
-                </div>
-              </div>
-            </button>
-          )}
+              </button>
+            );
+          })}
         </div>
 
         {geo.currency !== "BRL" && (

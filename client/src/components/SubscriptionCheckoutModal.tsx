@@ -13,7 +13,8 @@ interface Plan {
   priceId: string;
   label: string;
   priceFormatted: string;
-  interval: "month" | "year";
+  interval: string;
+  periodShort: string;
   badge?: string;
 }
 
@@ -118,14 +119,14 @@ function PaymentForm({
               365 Encontros Premium
             </h2>
             <p className="text-xs text-muted-foreground">
-              Plano {plan.label} · {plan.priceFormatted}/{plan.interval === "month" ? "mês" : "ano"}
+              Plano {plan.label} · {plan.priceFormatted}{plan.periodShort !== "único" ? `/${plan.periodShort}` : " · pagamento único"}
             </p>
           </div>
         </div>
 
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 mb-5 flex items-center justify-between">
           <span className="text-sm text-foreground font-medium">
-            {plan.interval === "month" ? "Assinatura Mensal" : "Assinatura Anual"}
+            {plan.interval === "one_time" ? "Acesso Vitalício" : `Assinatura ${plan.label}`}
           </span>
           <span className="text-base font-bold text-amber-600 dark:text-amber-400">
             {plan.priceFormatted}
