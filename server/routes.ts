@@ -5355,16 +5355,23 @@ REGRAS:
   // Image proxy for TikTok avatars (blocked when loaded directly)
   app.get("/api/proxy-image", async (req, res) => {
     try {
-      const url = req.query.url as string;
-      if (!url || !url.startsWith("https://")) return res.status(400).send("Invalid URL");
+      let url = req.query.url as string;
+      if (!url) return res.status(400).send("Invalid URL");
+      // Decode HTML entities that may have been passed through
+      url = url.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+      if (!url.startsWith("https://")) return res.status(400).send("Invalid URL");
       const imgRes = await fetch(url, {
         headers: {
           "Referer": "https://www.tiktok.com/",
           "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+          "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
         },
         signal: AbortSignal.timeout(8000),
       });
       const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+      if (!contentType.startsWith("image/")) {
+        return res.status(422).send("Not an image");
+      }
       res.setHeader("Content-Type", contentType);
       res.setHeader("Cache-Control", "public, max-age=86400");
       const buffer = await imgRes.arrayBuffer();
@@ -5401,8 +5408,32 @@ REGRAS:
       const decodeEntities = (s: string) =>
         s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
-      const avatarRaw = getMetaContent("og:image") || getMetaContent("twitter:image") || "";
-      const avatar = decodeEntities(avatarRaw);
+      // Try to extract avatar from TikTok's embedded JSON (has public CDN URLs)
+      let avatar = "";
+      const jsonMatch = html.match(/<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([^<]+)<\/script>/i)
+        || html.match(/window\.__INITIAL_STATE__\s*=\s*(\{.+?\});\s*<\/script>/i);
+      if (jsonMatch) {
+        try {
+          const jsonData = JSON.parse(jsonMatch[1]);
+          // Search recursively for avatarLarger or avatarMedium in the JSON
+          const findAvatar = (obj: any): string => {
+            if (!obj || typeof obj !== "object") return "";
+            if (obj.avatarLarger && typeof obj.avatarLarger === "string") return obj.avatarLarger;
+            if (obj.avatarMedium && typeof obj.avatarMedium === "string") return obj.avatarMedium;
+            for (const v of Object.values(obj)) {
+              const found = findAvatar(v);
+              if (found) return found;
+            }
+            return "";
+          };
+          avatar = findAvatar(jsonData);
+        } catch (_) {}
+      }
+      // Fallback to og:image meta if JSON extraction fails
+      if (!avatar) {
+        const avatarRaw = getMetaContent("og:image") || getMetaContent("twitter:image") || "";
+        avatar = decodeEntities(avatarRaw);
+      }
 
       const titleRaw = getMetaContent("og:title") || getMetaContent("twitter:title") || handle;
       // TikTok title format: "DisplayName (@handle) no TikTok"
